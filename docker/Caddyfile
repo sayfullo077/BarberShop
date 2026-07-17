@@ -1,0 +1,23 @@
+# Caddy — avtomatik HTTPS (Let's Encrypt) barber.it-services.uz uchun.
+# DNS shu serverga qaratilgan va 80/443 portlar ochiq bo'lishi shart.
+
+barber.it-services.uz {
+	encode gzip zstd
+
+	# Statik fayllar (collectstatic natijasi)
+	handle_path /static/* {
+		root * /srv/static
+		file_server
+	}
+
+	# Foydalanuvchi yuklagan media (logo, muqova, avatar)
+	handle_path /media/* {
+		root * /srv/media
+		file_server
+	}
+
+	# Qolgan hamma narsa — Django (gunicorn)
+	handle {
+		reverse_proxy web:8000
+	}
+}

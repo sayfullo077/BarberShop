@@ -1,0 +1,107 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Bron #{{ appointment.id|stringformat:"s"|slice:":8" }} — BarberShop{% endblock %}
+
+{% block content %}
+<div class="bradcam_area bradcam_bg_1">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="bradcam_text text-center">
+                    <h3>Bron tafsilotlari</h3>
+                    <p><a href="{% url 'shops:home' %}">Bosh sahifa</a> / <a href="{% url 'bookings:my_list' %}">Bronlarim</a> / Bron</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="py-80">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-7">
+                <div class="white-box p-40">
+
+                    <!-- Status badge -->
+                    <div class="text-center mb-30">
+                        {% if appointment.status == 'confirmed' %}
+                            <span class="badge badge-success" style="font-size:1.1rem;padding:10px 20px;">✅ Tasdiqlangan</span>
+                        {% elif appointment.status == 'pending' %}
+                            <span class="badge badge-warning" style="font-size:1.1rem;padding:10px 20px;">⏳ Kutilmoqda</span>
+                        {% elif appointment.status == 'cancelled' %}
+                            <span class="badge badge-danger" style="font-size:1.1rem;padding:10px 20px;">❌ Bekor qilindi</span>
+                        {% elif appointment.status == 'completed' %}
+                            <span class="badge badge-info" style="font-size:1.1rem;padding:10px 20px;">✓ Bajarildi</span>
+                        {% endif %}
+                    </div>
+
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong><i class="fas fa-store mr-2"></i>Salon:</strong></td>
+                            <td><a href="{% url 'shops:detail' appointment.shop.slug %}">{{ appointment.shop.name }}</a></td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-cut mr-2"></i>Sartarosh:</strong></td>
+                            <td>{{ appointment.barber.user.get_full_name|default:appointment.barber.user.username }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-list mr-2"></i>Xizmat:</strong></td>
+                            <td>{{ appointment.service.name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-calendar mr-2"></i>Sana:</strong></td>
+                            <td>{{ appointment.date|date:"d.m.Y, l" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-clock mr-2"></i>Vaqt:</strong></td>
+                            <td>{{ appointment.start_time|time:"H:i" }} – {{ appointment.end_time|time:"H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong><i class="fas fa-money-bill mr-2"></i>Narx:</strong></td>
+                            <td>{{ appointment.service.price|floatformat:0 }} so'm</td>
+                        </tr>
+                        {% if appointment.client_note %}
+                        <tr>
+                            <td><strong><i class="fas fa-comment mr-2"></i>Izoh:</strong></td>
+                            <td>{{ appointment.client_note }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+
+                    {% if appointment.status in 'pending confirmed' %}
+                    <div class="text-center mt-20">
+                        <button class="btn btn-danger" id="cancel-btn"
+                                data-id="{{ appointment.id }}"
+                                data-url="{% url 'bookings:cancel' appointment.id %}">
+                            <i class="fas fa-times"></i> Bronni bekor qilish
+                        </button>
+                    </div>
+                    {% endif %}
+
+                    <div class="text-center mt-20">
+                        <a href="{% url 'bookings:my_list' %}" class="btn btn-secondary">← Bronlarimga qaytish</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$("#cancel-btn").click(function() {
+    if (!confirm("Bronni bekor qilmoqchimisiz?")) return;
+    const url = $(this).data("url");
+    $.ajax({
+        url: url, method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+        success: function() { location.reload(); },
+        error: function(xhr) {
+            alert(xhr.responseJSON?.error || "Xatolik yuz berdi.");
+        }
+    });
+});
+</script>
+{% endblock %}

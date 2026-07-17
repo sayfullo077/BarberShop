@@ -1,0 +1,2698 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BarberShop</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ── Reset ─────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+/* ── Design Tokens — Dark (default) ────────────────────── */
+:root {
+  --gold:    #d19f68;
+  --gold-lt: #e8ba85;
+  --bg:      #16161a;
+  --bg2:     #1f1f24;
+  --bg3:     #2a2a30;
+  --text:    #e8e4dc;
+  --muted:   #8a8880;
+  --border:  rgba(255,255,255,.06);
+  --border-gold: rgba(209,159,104,.2);
+  --shadow:  rgba(0,0,0,.4);
+  --white:   #ffffff;
+  --danger:  #c0392b;
+  --success: #27ae60;
+
+  --font-head: 'Oswald', sans-serif;
+  --font-body: 'Poppins', sans-serif;
+  --radius: 4px;
+  --radius-lg: 10px;
+}
+
+/* ── Light Theme ────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:      #f2ede6;
+  --bg2:     #faf7f3;
+  --bg3:     #ede8e0;
+  --text:    #1d1a16;
+  --muted:   #7a736a;
+  --border:  rgba(0,0,0,.07);
+  --border-gold: rgba(180,120,60,.25);
+  --shadow:  rgba(0,0,0,.1);
+  --white:   #ffffff;
+}
+
+/* ── Theme transition ───────────────────────────────────── */
+*, *::before, *::after { transition: background-color .25s, color .2s, border-color .2s; }
+
+/* ── Light theme border/divider overrides ───────────────── */
+[data-theme="light"] .shop-card          { border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .shop-card-footer   { border-color: rgba(0,0,0,.06); }
+[data-theme="light"] .info-block         { border-color: rgba(0,0,0,.07); }
+[data-theme="light"] .info-row           { border-color: rgba(0,0,0,.06); }
+[data-theme="light"] .tabs               { border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .price-item         { border-color: rgba(0,0,0,.06); }
+[data-theme="light"] .summary-box        { border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .sum-row            { border-color: rgba(0,0,0,.06); }
+[data-theme="light"] .booking-item       { border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .barber-card        { border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .barber-photo       { background: var(--bg3); }
+[data-theme="light"] .barber-foot        { border-color: rgba(180,120,60,.2); }
+[data-theme="light"] .detail-header      { border-color: rgba(0,0,0,.07); background: var(--bg2); }
+[data-theme="light"] .nav-header         { border-color: rgba(0,0,0,.07); }
+[data-theme="light"] .nav-footer         { border-color: rgba(0,0,0,.07); color: rgba(0,0,0,.3); }
+[data-theme="light"] .nav-divider        { background: rgba(0,0,0,.06); }
+[data-theme="light"] .slot-btn           { border-color: rgba(0,0,0,.12); }
+[data-theme="light"] .wh-item            { border-color: rgba(0,0,0,.06); }
+[data-theme="light"] #nav-overlay        { border-color: rgba(0,0,0,.1); background: var(--bg2); }
+[data-theme="light"] #nav-backdrop       { background: rgba(0,0,0,.35); }
+[data-theme="light"] .pi-dots            { border-color: rgba(180,120,60,.3); }
+[data-theme="light"] .error-box          { background: rgba(192,57,43,.08); }
+
+/* ── Theme Toggle Button ────────────────────────────────── */
+.theme-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border-gold);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold); font-size: 14px; cursor: pointer;
+  transition: background .2s, transform .3s;
+  flex-shrink: 0;
+}
+.theme-btn:active { background: rgba(209,159,104,.15); transform: rotate(20deg); }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Screen System ──────────────────────────────────────── */
+#app { position:relative; height:100vh; overflow:hidden; }
+
+.screen {
+  position:absolute; inset:0;
+  overflow-y:auto; overflow-x:hidden;
+  background: var(--bg);
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  will-change: transform;
+  padding-bottom: 90px;
+}
+.screen.active  { transform: translateX(0); }
+.screen.leaving { transform: translateX(-20%); pointer-events:none; }
+.screen.no-anim { transition: none !important; }
+
+/* ── TopBar ─────────────────────────────────────────────── */
+.topbar {
+  position: sticky; top:0; z-index: 50;
+  background: var(--bg2);
+  border-bottom: 1px solid rgba(209,159,104,.15);
+  display:flex; align-items:center; gap:10px;
+  padding: 13px 16px;
+}
+.topbar-logo {
+  font-family: var(--font-head);
+  font-size: 20px; font-weight: 700;
+  color: var(--gold); letter-spacing: 2px;
+  text-transform: uppercase; flex:1;
+  transition: padding-left .2s;
+}
+.topbar-logo span { color: var(--text); font-weight: 300; }
+.topbar-action {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(209,159,104,.3);
+  background: transparent;
+  display:flex; align-items:center; justify-content:center;
+  color: var(--gold); font-size: 15px; cursor: pointer;
+  transition: .2s;
+}
+.topbar-action:active { background: rgba(209,159,104,.15); }
+
+/* ── Global back button (fixed, over topbar) ────────────── */
+#global-back-btn {
+  position: fixed; top: 9px; left: 12px; z-index: 200;
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(209,159,104,.3); background: var(--bg2);
+  display: none; align-items: center; justify-content: center;
+  color: var(--gold); font-size: 15px; cursor: pointer;
+  transition: background .2s;
+}
+#global-back-btn.show { display: flex; }
+#global-back-btn:active { background: rgba(209,159,104,.15); }
+body.has-back .screen.active .topbar-logo { padding-left: 44px; }
+
+/* ── Avatar upload ──────────────────────────────────────── */
+.avatar-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.avatar-img {
+  width: 72px; height: 72px; border-radius: 50%;
+  object-fit: cover; border: 2px solid var(--border-gold);
+  background: var(--bg3);
+}
+.avatar-placeholder {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--bg3); border: 2px solid var(--border-gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: var(--muted);
+}
+.avatar-upload-btn {
+  position: absolute; bottom: 0; right: 0;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--gold); color: var(--bg); border: 2px solid var(--bg2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; cursor: pointer;
+}
+
+/* ── Salon logo in registration ─────────────────────────── */
+.salon-logo-pick {
+  width: 64px; height: 64px; border-radius: 12px;
+  border: 1.5px dashed var(--border-gold); background: var(--bg3);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; cursor: pointer; transition: .2s;
+  color: var(--muted); font-size: 10px; gap: 4px; flex-shrink: 0;
+}
+.salon-logo-pick:active { background: rgba(209,159,104,.08); }
+.salon-logo-pick i { font-size: 20px; color: var(--gold); }
+.salon-logo-pick img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
+
+/* ── Support screen ─────────────────────────────────────── */
+.support-hero {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 24px 16px; text-align: center;
+}
+.support-hero-icon { font-size: 48px; margin-bottom: 12px; }
+.support-hero-title {
+  font-family: var(--font-head); font-size: 22px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--text);
+  margin-bottom: 8px;
+}
+.support-hero-sub { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.support-email-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg2); border: 1px solid var(--border-gold);
+  border-radius: 20px; padding: 6px 14px; margin: 12px 0;
+  font-size: 13px; color: var(--gold); font-family: var(--font-head);
+}
+
+/* ── Barber edit screen ─────────────────────────────────── */
+.edit-avatar-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 14px; background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Section Label (Template style) ────────────────────── */
+.sec-label {
+  font-family: var(--font-head);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 20px 16px 8px;
+  display:flex; align-items:center; gap:10px;
+}
+.sec-label::after {
+  content: ''; flex:1; height:1px;
+  background: linear-gradient(90deg, rgba(209,159,104,.4), transparent);
+}
+
+/* ── Gold Divider ───────────────────────────────────────── */
+.gold-line {
+  width: 40px; height: 2px;
+  background: var(--gold);
+  margin: 8px 0 16px;
+}
+
+/* ── Shop Card ──────────────────────────────────────────── */
+.shop-card {
+  margin: 8px 14px;
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s;
+}
+.shop-card:active { transform: scale(.99); border-color: rgba(209,159,104,.4); }
+
+.shop-card-inner {
+  display: flex; align-items: center; gap:14px; padding: 14px 16px;
+}
+.shop-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--bg3);
+  border: 1.5px solid rgba(209,159,104,.3);
+  display:flex; align-items:center; justify-content:center;
+  font-size: 22px; flex-shrink:0; overflow:hidden;
+}
+.shop-avatar img { width:100%; height:100%; object-fit:cover; }
+.shop-info { flex:1; min-width:0; }
+.shop-name {
+  font-family: var(--font-head);
+  font-size: 17px; font-weight: 500;
+  text-transform: uppercase; letter-spacing:.5px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.shop-addr { color: var(--muted); font-size:12px; margin-top:3px; }
+.shop-badge {
+  font-family: var(--font-head);
+  font-size: 11px; font-weight: 500; letter-spacing:.5px;
+  color: var(--gold); text-transform:uppercase;
+  white-space:nowrap;
+}
+.shop-card-footer {
+  border-top: 1px solid rgba(255,255,255,.04);
+  padding: 9px 16px;
+  display: flex; align-items:center; justify-content:space-between;
+}
+.shop-card-footer span { font-size:12px; color:var(--muted); }
+.shop-card-footer i { color: var(--gold); font-size:12px; }
+
+/* ── Shop Cover ─────────────────────────────────────────── */
+.cover-wrap { position:relative; overflow:hidden; }
+.cover-img {
+  width:100%; height:200px; object-fit:cover; display:block;
+}
+.cover-placeholder {
+  width:100%; height:160px;
+  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 100%);
+  display:flex; align-items:center; justify-content:center;
+}
+.cover-overlay {
+  position:absolute; inset:0;
+  background: linear-gradient(to top, rgba(22,22,26,.9) 0%, transparent 50%);
+}
+.cover-title {
+  position:absolute; bottom:0; left:0; right:0;
+  padding: 16px;
+}
+.cover-title h2 {
+  font-family: var(--font-head);
+  font-size: 26px; font-weight: 700;
+  text-transform: uppercase; letter-spacing:1px; color:#fff;
+}
+.cover-title .gold-sub {
+  font-size:11px; color:var(--gold); letter-spacing:2px;
+  text-transform:uppercase; font-family:var(--font-head); margin-top:2px;
+}
+
+/* ── Info Row ───────────────────────────────────────────── */
+.info-block {
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: var(--radius-lg);
+  margin: 8px 14px; padding:12px 16px;
+}
+.info-row {
+  display:flex; align-items:flex-start; gap:12px;
+  padding: 7px 0; border-bottom:1px solid rgba(255,255,255,.04);
+}
+.info-row:last-child { border:none; padding-bottom:0; }
+.info-row i { color:var(--gold); width:16px; flex-shrink:0; font-size:13px; margin-top:1px; }
+.info-row-text { font-size:13px; line-height:1.45; color:var(--text); }
+.info-link { color:var(--gold); text-decoration:none; }
+
+/* ── Tabs ───────────────────────────────────────────────── */
+.tabs {
+  display:flex; margin: 12px 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.tab {
+  flex:1; text-align:center;
+  font-family:var(--font-head); font-size:13px; font-weight:500;
+  letter-spacing:.5px; text-transform:uppercase;
+  padding: 10px 4px; color:var(--muted);
+  cursor:pointer; border-bottom: 2px solid transparent;
+  transition: .2s; position:relative; top:1px;
+}
+.tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+/* ── Service Pricing List (Template Style) ─────────────── */
+.price-list { margin: 0; padding: 0; list-style:none; }
+.price-item {
+  display:flex; align-items:flex-start; gap:8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  cursor:pointer; transition:.15s;
+}
+.price-item:last-child { border:none; }
+.price-item:active { background: rgba(209,159,104,.06); }
+.price-item.selected { background: rgba(209,159,104,.1); border-color: rgba(209,159,104,.2); }
+.price-item.selected .pi-name { color:var(--gold); }
+
+.pi-left { flex:1; min-width:0; }
+.pi-name {
+  font-family: var(--font-head); font-size:16px; font-weight:500;
+  text-transform:uppercase; letter-spacing:.3px; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pi-meta { color:var(--muted); font-size:11px; margin-top:3px; letter-spacing:.3px; }
+.pi-dots {
+  flex:1; border-bottom: 1px dotted rgba(209,159,104,.3);
+  margin: 0 6px; align-self:flex-end; margin-bottom:5px;
+}
+.pi-price {
+  font-family:var(--font-head); font-size:16px; font-weight:600;
+  color:var(--gold); white-space:nowrap; flex-shrink:0;
+}
+
+/* ── Barber Cards ───────────────────────────────────────── */
+.barber-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px 14px; }
+.barber-card {
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: var(--radius-lg);
+  overflow:hidden; cursor:pointer;
+  transition:.15s; text-align:center;
+}
+.barber-card:active { border-color:rgba(209,159,104,.4); transform:scale(.98); }
+.barber-card.selected { border-color:var(--gold); }
+
+.barber-photo {
+  width:100%; aspect-ratio:1; background:var(--bg3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:40px; overflow:hidden; position:relative;
+}
+.barber-photo img { width:100%; height:100%; object-fit:cover; }
+.barber-photo::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:40%;
+  background: linear-gradient(to top, rgba(22,22,26,.8), transparent);
+}
+.barber-foot {
+  padding: 10px 8px 12px;
+  border-top: 1px solid rgba(209,159,104,.15);
+}
+.barber-name {
+  font-family:var(--font-head); font-size:14px; font-weight:500;
+  text-transform:uppercase; letter-spacing:.5px; color:var(--text);
+}
+.barber-role { font-size:11px; color:var(--gold); letter-spacing:.5px; margin-top:2px; }
+.barber-exp { font-size:11px; color:var(--muted); margin-top:3px; }
+
+/* ── Date Input ─────────────────────────────────────────── */
+.date-wrap { padding: 8px 14px; }
+.date-field {
+  width:100%; padding: 13px 16px;
+  background: var(--bg2);
+  border: 1px solid rgba(209,159,104,.25);
+  border-radius: var(--radius);
+  color: var(--text); font-family:var(--font-body); font-size:14px;
+  color-scheme: dark; outline:none;
+  transition:.2s;
+}
+.date-field:focus { border-color:var(--gold); }
+
+/* ── Time Slots ─────────────────────────────────────────── */
+.slots-wrap { padding: 6px 14px; }
+.slots-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+}
+.slot-btn {
+  padding:10px 4px; text-align:center;
+  font-family:var(--font-head); font-size:14px; font-weight:500;
+  letter-spacing:.5px;
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--radius);
+  color: var(--text); cursor:pointer; transition:.15s;
+}
+.slot-btn:active { transform:scale(.94); }
+.slot-btn.selected {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+/* ── Summary (Confirm) ──────────────────────────────────── */
+.summary-box {
+  margin: 8px 14px;
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-lg);
+  overflow:hidden;
+}
+.sum-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.sum-row:last-child { border:none; }
+.sum-label {
+  font-family:var(--font-head); font-size:12px; font-weight:500;
+  letter-spacing:1px; text-transform:uppercase; color:var(--muted);
+}
+.sum-val { font-size:14px; font-weight:500; text-align:right; max-width:60%; }
+.sum-price {
+  font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--gold);
+}
+
+/* ── Primary Button ─────────────────────────────────────── */
+.btn-primary {
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:calc(100% - 28px); margin:10px 14px;
+  padding: 15px; border:none; border-radius:var(--radius); cursor:pointer;
+  font-family:var(--font-head); font-size:14px; font-weight:600;
+  letter-spacing:2px; text-transform:uppercase;
+  background: var(--gold); color: var(--bg);
+  transition:.15s;
+}
+.btn-primary:active { opacity:.85; }
+.btn-secondary {
+  background: transparent; color:var(--text);
+  border: 1px solid rgba(255,255,255,.2);
+}
+.btn-danger {
+  background: rgba(192,57,43,.15); color:#e74c3c;
+  border: 1px solid rgba(192,57,43,.3);
+}
+
+/* ── Working Hours ──────────────────────────────────────── */
+.wh-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.wh-item {
+  padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05);
+}
+.wh-item:nth-last-child(-n+2) { border-bottom:none; }
+.wh-day {
+  font-family:var(--font-head); font-size:12px; letter-spacing:1px;
+  text-transform:uppercase; color:var(--muted);
+}
+.wh-time { font-size:13px; font-weight:500; margin-top:3px; }
+.wh-off { color:var(--muted); font-style:italic; }
+
+/* ── Booking Row ────────────────────────────────────────── */
+.booking-list { margin:8px 14px; }
+.booking-item {
+  background: var(--bg2);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  cursor:pointer; transition:.15s;
+  display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+}
+.booking-item:active { border-color:rgba(209,159,104,.3); }
+.booking-item:last-child { margin-bottom:0; }
+.booking-shop {
+  font-family:var(--font-head); font-size:15px; font-weight:500;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.booking-service { font-size:12px; color:var(--muted); margin-top:3px; }
+.booking-when {
+  display:flex; align-items:center; gap:6px; margin-top:8px;
+  font-size:12px; color:var(--gold);
+}
+
+/* ── Status Badges ──────────────────────────────────────── */
+.badge {
+  font-family:var(--font-head); font-size:10px; font-weight:600;
+  letter-spacing:1px; text-transform:uppercase;
+  padding: 4px 10px; border-radius:20px; flex-shrink:0;
+}
+.badge-pending   { background:rgba(230,176,9,.12);  color:#e6b009; border:1px solid rgba(230,176,9,.25); }
+.badge-confirmed { background:rgba(39,174,96,.12);  color:#27ae60; border:1px solid rgba(39,174,96,.25); }
+.badge-cancelled { background:rgba(192,57,43,.12);  color:#e74c3c; border:1px solid rgba(192,57,43,.25); }
+.badge-completed { background:rgba(127,140,141,.12);color:#95a5a6; border:1px solid rgba(127,140,141,.25); }
+.badge-no_show   { background:rgba(192,57,43,.12);  color:#e74c3c; border:1px solid rgba(192,57,43,.25); }
+
+/* ── Success Screen ─────────────────────────────────────── */
+.success-wrap {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:80vh; padding:32px 24px; text-align:center;
+}
+.success-circle {
+  width:90px; height:90px; border-radius:50%;
+  border: 2px solid var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:24px; position:relative;
+}
+.success-circle::before {
+  content:''; position:absolute; inset:-8px;
+  border-radius:50%; border:1px solid rgba(209,159,104,.2);
+}
+.success-circle i { font-size:38px; color:var(--gold); }
+.success-title {
+  font-family:var(--font-head); font-size:28px; font-weight:700;
+  text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;
+}
+.success-sub { color:var(--muted); font-size:13px; line-height:1.6; max-width:280px; }
+
+/* ── States ─────────────────────────────────────────────── */
+.loading-wrap {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:60px 20px; gap:14px;
+}
+.spinner {
+  width:24px; height:24px;
+  border:2px solid rgba(209,159,104,.2);
+  border-top-color:var(--gold); border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.spinner-text { font-size:12px; color:var(--muted); letter-spacing:1px; }
+
+.empty-wrap { text-align:center; padding:50px 20px; }
+.empty-icon { font-size:44px; margin-bottom:14px; opacity:.5; }
+.empty-title {
+  font-family:var(--font-head); font-size:18px; letter-spacing:1px;
+  text-transform:uppercase; color:var(--muted); margin-bottom:8px;
+}
+.empty-sub { font-size:13px; color:var(--muted); }
+
+.error-box {
+  margin:8px 14px; padding:12px 14px;
+  background:rgba(192,57,43,.1); color:#e74c3c;
+  border:1px solid rgba(192,57,43,.25); border-radius:var(--radius);
+  font-size:13px; display:none;
+}
+.success-box {
+  margin:8px 14px; padding:12px 14px;
+  background:rgba(39,174,96,.1); color:#27ae60;
+  border:1px solid rgba(39,174,96,.25); border-radius:var(--radius);
+  font-size:13px; display:flex; align-items:center; gap:8px;
+}
+
+/* ── Booking Detail ─────────────────────────────────────── */
+.detail-header {
+  display:flex; align-items:center; gap:14px; padding:16px;
+  background:var(--bg2); border-bottom:1px solid rgba(255,255,255,.05);
+}
+.detail-icon {
+  width:48px; height:48px; border-radius:50%;
+  border: 1px solid rgba(209,159,104,.3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; background:rgba(209,159,104,.1);
+  flex-shrink:0;
+}
+.detail-shop {
+  font-family:var(--font-head); font-size:17px; font-weight:500;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.detail-service { font-size:12px; color:var(--muted); margin-top:3px; }
+
+/* ── Loading Screen ─────────────────────────────────────── */
+#s-loading {
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; height:100vh; gap:20px;
+}
+.load-logo {
+  font-family:var(--font-head); font-size:32px; font-weight:700;
+  color:var(--gold); letter-spacing:4px; text-transform:uppercase;
+}
+.load-logo span { color:rgba(255,255,255,.3); font-weight:300; }
+.load-line {
+  width:80px; height:1px; background:rgba(209,159,104,.3); position:relative; overflow:hidden;
+}
+.load-line::after {
+  content:''; position:absolute; left:-100%; top:0;
+  width:100%; height:100%; background:var(--gold);
+  animation: loadline 1.2s ease-in-out infinite;
+}
+@keyframes loadline { to { left:200%; } }
+
+/* ── Role Selection ─────────────────────────────────────── */
+.role-hero {
+  text-align: center; padding: 40px 24px 24px;
+}
+.role-hero-icon { font-size: 48px; margin-bottom: 16px; }
+.role-hero h2 {
+  font-family: var(--font-head); font-size: 24px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;
+}
+.role-hero p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+.role-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 14px 24px; }
+.role-card {
+  background: var(--bg2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 22px 14px;
+  text-align: center; cursor: pointer; transition: .2s;
+}
+.role-card:active { transform: scale(.97); border-color: var(--gold); }
+.role-card.selected { border-color: var(--gold); background: rgba(209,159,104,.08); }
+.role-card-icon { font-size: 32px; margin-bottom: 10px; }
+.role-card-title {
+  font-family: var(--font-head); font-size: 15px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--text);
+}
+.role-card-desc { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+
+/* ── Step Indicator ─────────────────────────────────────── */
+.step-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 14px 16px 6px;
+}
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--bg3); transition: .3s;
+}
+.step-dot.active { background: var(--gold); width: 24px; border-radius: 4px; }
+.step-dot.done   { background: rgba(209,159,104,.4); }
+
+.step-label {
+  text-align: center; padding: 4px 16px 16px;
+  font-family: var(--font-head); font-size: 11px;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+}
+
+/* ── Form Fields ─────────────────────────────────────────── */
+.form-group { padding: 6px 14px; }
+.form-label {
+  font-family: var(--font-head); font-size: 11px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 6px; display: block;
+}
+.form-input {
+  width: 100%; padding: 12px 14px;
+  background: var(--bg2); border: 1px solid var(--border-gold);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--font-body); font-size: 14px;
+  outline: none; transition: border-color .2s;
+}
+.form-input:focus { border-color: var(--gold); }
+.form-input::placeholder { color: var(--muted); }
+textarea.form-input { resize: none; height: 80px; line-height: 1.5; }
+
+/* ── Spec Cards ──────────────────────────────────────────── */
+.spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 6px 14px; }
+.spec-card {
+  background: var(--bg2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 8px;
+  text-align: center; cursor: pointer; transition: .2s;
+}
+.spec-card:active { transform: scale(.96); }
+.spec-card.selected { border-color: var(--gold); background: rgba(209,159,104,.08); }
+.spec-card-icon { font-size: 26px; margin-bottom: 6px; }
+.spec-card-label {
+  font-family: var(--font-head); font-size: 12px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+
+/* ── Service Picker ──────────────────────────────────────── */
+.svc-pick-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: .15s;
+}
+.svc-pick-item:last-child { border: none; }
+.svc-check {
+  width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid var(--border-gold);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--bg); font-size: 11px; transition: .2s;
+}
+.svc-pick-item.selected .svc-check {
+  background: var(--gold); border-color: var(--gold);
+}
+.svc-pick-info { flex: 1; }
+.svc-pick-name {
+  font-family: var(--font-head); font-size: 14px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.svc-pick-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.svc-pick-price { font-family: var(--font-head); font-size: 14px; color: var(--gold); }
+
+/* ── Service price editor (shown when selected) ─────────── */
+.svc-price-row {
+  display: none; grid-template-columns: 1fr 80px; gap: 8px;
+  padding: 4px 14px 10px 46px;
+}
+.svc-pick-item.selected + .svc-price-row { display: grid; }
+.svc-price-row .form-input { font-size: 13px; padding: 6px 10px; height: 36px; }
+
+/* ── Salon selection list ────────────────────────────────── */
+.salon-pick-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: .15s;
+}
+.salon-pick-item:last-child { border: none; }
+.salon-pick-item:active { background: rgba(209,159,104,.05); }
+.salon-pick-item.selected { background: rgba(209,159,104,.06); }
+.salon-pick-radio {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border-gold);
+  display: flex; align-items: center; justify-content: center; transition: .2s;
+}
+.salon-pick-item.selected .salon-pick-radio {
+  border-color: var(--gold); background: var(--gold);
+}
+.salon-pick-item.selected .salon-pick-radio::after {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--bg);
+}
+.salon-pick-info { flex: 1; }
+.salon-pick-name {
+  font-family: var(--font-head); font-size: 14px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.salon-pick-addr { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.salon-new-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px; margin: 6px 14px;
+  background: var(--bg2); border: 1.5px dashed var(--border-gold);
+  border-radius: var(--radius-lg); cursor: pointer; transition: .2s;
+  font-family: var(--font-head); font-size: 13px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .5px; color: var(--gold);
+}
+.salon-new-btn.selected { background: rgba(209,159,104,.08); border-style: solid; }
+.salon-new-btn i { font-size: 16px; }
+
+/* ── Custom service add row ──────────────────────────────── */
+.custom-svc-row {
+  display: grid; grid-template-columns: 1fr 70px 90px; gap: 8px; padding: 6px 14px;
+}
+
+/* ── Barber Dashboard ────────────────────────────────────── */
+.barber-profile-card {
+  margin: 12px 14px 4px;
+  background: var(--bg2); border: 1px solid var(--border-gold);
+  border-radius: var(--radius-lg); padding: 16px;
+}
+.bpc-name {
+  font-family: var(--font-head); font-size: 20px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--text);
+}
+.bpc-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.spec-badge {
+  font-size: 11px; font-family: var(--font-head); letter-spacing: .5px;
+  text-transform: uppercase; color: var(--gold);
+  border: 1px solid var(--border-gold); border-radius: 4px;
+  padding: 2px 8px;
+}
+.bpc-exp { font-size: 12px; color: var(--muted); }
+
+.empty-svc-prompt {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px 14px; text-align: center;
+  background: var(--bg2); border: 1px dashed var(--border-gold);
+  border-radius: var(--radius-lg); margin: 4px 14px 8px;
+  color: var(--text);
+}
+
+.dash-stat-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 8px 14px;
+}
+.dash-stat {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 14px; text-align: center;
+}
+.dash-stat-num {
+  font-family: var(--font-head); font-size: 28px; font-weight: 700; color: var(--gold);
+}
+.dash-stat-label { font-size: 11px; color: var(--muted); letter-spacing: .5px; margin-top: 4px; }
+
+.dash-appt {
+  display: flex; gap: 12px; padding: 12px 14px;
+  border-bottom: 1px solid var(--border); cursor: pointer; transition: .15s;
+}
+.dash-appt:active { background: rgba(209,159,104,.05); }
+.dash-time-col { text-align: center; flex-shrink: 0; width: 44px; }
+.dash-time {
+  font-family: var(--font-head); font-size: 16px; font-weight: 600; color: var(--gold);
+}
+.dash-end-time { font-size: 10px; color: var(--muted); }
+.dash-client { font-family: var(--font-head); font-size: 14px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .3px; }
+.dash-svc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.dash-price { font-size: 12px; color: var(--gold); margin-top: 2px; }
+
+/* ── Toggle switch ───────────────────────────────────────── */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  margin: 4px 14px;
+}
+.toggle-row-label { font-size: 14px; font-weight: 500; }
+.toggle-row-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.toggle {
+  position: relative; width: 44px; height: 24px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+  position: absolute; inset: 0; border-radius: 12px;
+  background: var(--bg3); cursor: pointer; transition: .3s;
+}
+.toggle input:checked + .toggle-track { background: var(--gold); }
+.toggle-track::after {
+  content: ''; position: absolute;
+  width: 18px; height: 18px; left: 3px; top: 3px;
+  background: white; border-radius: 50%; transition: .3s;
+}
+.toggle input:checked + .toggle-track::after { transform: translateX(20px); }
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(209,159,104,.3); border-radius:3px; }
+
+/* ── Burger Button ──────────────────────────────────────── */
+.burger {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(209,159,104,.3);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-direction: column; gap: 5px;
+  padding: 10px; transition: .2s; flex-shrink:0;
+}
+.burger:active { background: rgba(209,159,104,.15); }
+.burger span {
+  display: block; width: 16px; height: 1.5px;
+  background: var(--gold);
+  transition: transform .3s, opacity .3s, width .3s;
+  transform-origin: center;
+}
+.burger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.burger.open span:nth-child(2) { opacity: 0; width: 0; }
+.burger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+/* ── Nav Backdrop ───────────────────────────────────────── */
+#nav-backdrop {
+  position: fixed; inset: 0; z-index: 199;
+  background: rgba(0,0,0,.55);
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+#nav-backdrop.open { opacity: 1; pointer-events: all; }
+
+/* ── Side Drawer ────────────────────────────────────────── */
+#nav-overlay {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 72%; max-width: 280px;
+  z-index: 200;
+  background: var(--bg2);
+  border-left: 1px solid rgba(209,159,104,.15);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+#nav-overlay.open { transform: translateX(0); }
+
+/* gold accent bar */
+#nav-overlay::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(to bottom, transparent 0%, var(--gold) 40%, transparent 100%);
+}
+
+/* ── Drawer Header ──────────────────────────────────────── */
+.nav-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.nav-brand {
+  font-family: var(--font-head); font-size: 16px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--gold);
+}
+.nav-brand span { color: rgba(255,255,255,.35); font-weight: 300; }
+
+.nav-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid rgba(209,159,104,.2);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px; cursor: pointer;
+  transition: .2s;
+}
+.nav-close:active { background: rgba(209,159,104,.15); color: var(--gold); }
+
+/* ── Nav Items ──────────────────────────────────────────── */
+.nav-list { list-style: none; padding: 8px 0; flex: 1; }
+.nav-item { }
+
+.nav-link {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px; cursor: pointer;
+  font-family: var(--font-head); font-size: 15px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text);
+  border-left: 2px solid transparent;
+  transition: color .2s, background .2s, border-color .2s;
+}
+.nav-link:active {
+  color: var(--gold);
+  background: rgba(209,159,104,.07);
+  border-left-color: var(--gold);
+}
+.nav-link i {
+  width: 18px; text-align: center;
+  font-size: 14px; color: var(--gold); opacity: .75;
+}
+
+.nav-divider {
+  height: 1px; background: rgba(255,255,255,.05);
+  margin: 6px 20px;
+}
+
+/* ── Drawer Footer ──────────────────────────────────────── */
+.nav-footer {
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  font-size: 10px; color: rgba(255,255,255,.18);
+  letter-spacing: 2px; text-transform: uppercase;
+  font-family: var(--font-head);
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ NAV BACKDROP + DRAWER (body darajasida) ══════════ -->
+<!-- Global back button (fixed, outside #app) -->
+<button id="global-back-btn" onclick="goBack()">
+  <i class="fa-solid fa-arrow-left"></i>
+</button>
+
+<div id="nav-backdrop" onclick="closeNav()"></div>
+<div id="nav-overlay">
+  <div class="nav-header">
+    <div class="nav-brand">Barber<span>Shop</span></div>
+    <button class="nav-close" onclick="closeNav()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <ul class="nav-list">
+    <li class="nav-item">
+      <div class="nav-link" onclick="navGo('shops')">
+        <i class="fa-solid fa-store"></i> Salonlar
+      </div>
+    </li>
+    <div class="nav-divider"></div>
+    <li class="nav-item">
+      <div class="nav-link" onclick="navGo('my-bookings')">
+        <i class="fa-regular fa-calendar-check"></i> Bronlarim
+      </div>
+    </li>
+    <div class="nav-divider"></div>
+    <li class="nav-item" id="nav-barber-item" style="display:none;">
+      <div class="nav-link" onclick="navGo('barber-dash')">
+        <i class="fa-solid fa-scissors"></i> Kabinetim
+      </div>
+    </li>
+    <li class="nav-item" id="nav-become-barber" style="display:none;">
+      <div class="nav-link" onclick="navGo('become-barber')" style="color:var(--gold);">
+        <i class="fa-solid fa-plus"></i> Barber bo'lish
+      </div>
+    </li>
+    <div class="nav-divider"></div>
+    <li class="nav-item">
+      <div class="nav-link" onclick="navGo('support')">
+        <i class="fa-regular fa-circle-question"></i> Yordam
+      </div>
+    </li>
+  </ul>
+  <div class="nav-footer">Online Booking · 2025</div>
+</div>
+
+<div id="app">
+
+<!-- ══════════ LOADING ══════════ -->
+<div class="screen active no-anim" id="s-loading">
+  <div class="load-logo">Barber<span>Shop</span></div>
+  <div class="load-line"></div>
+</div>
+
+<!-- ══════════ SHOPS LIST ══════════ -->
+<div class="screen" id="s-shops">
+  <div class="topbar">
+    <div class="topbar-logo">Barber<span>Shop</span></div>
+    <button class="theme-btn" id="theme-btn-main" onclick="toggleTheme()" title="Tema o'zgartirish"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()" aria-label="Menyu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div id="shops-content">
+    <div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">YUKLANMOQDA</div></div>
+  </div>
+</div>
+
+<!-- ══════════ SHOP DETAIL ══════════ -->
+<div class="screen" id="s-shop">
+  <div id="shop-detail-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ SERVICE SELECT ══════════ -->
+<div class="screen" id="s-service">
+  <div class="topbar">
+    <div class="topbar-logo">Xizmat</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="service-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ BARBER SELECT ══════════ -->
+<div class="screen" id="s-barber">
+  <div class="topbar">
+    <div class="topbar-logo">Sartarosh</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="barber-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ DATE & TIME ══════════ -->
+<div class="screen" id="s-datetime">
+  <div class="topbar">
+    <div class="topbar-logo">Vaqt</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="sec-label">Sana tanlang</div>
+  <div class="date-wrap">
+    <input type="date" class="date-field" id="date-input">
+  </div>
+  <div id="slots-area">
+    <div class="empty-wrap" style="padding:20px;">
+      <div class="empty-sub" style="color:var(--muted);font-size:12px;letter-spacing:1px;">SANA TANLANG</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CONFIRM ══════════ -->
+<div class="screen" id="s-confirm">
+  <div class="topbar">
+    <div class="topbar-logo">Tasdiqlash</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="sec-label">Bron ma'lumotlari</div>
+  <div class="summary-box" id="confirm-summary"></div>
+  <div class="error-box" id="confirm-err"></div>
+</div>
+
+<!-- ══════════ SUCCESS ══════════ -->
+<div class="screen" id="s-success">
+  <div class="success-wrap">
+    <div class="success-circle">
+      <i class="fa-solid fa-check"></i>
+    </div>
+    <div class="success-title">Bron Qilindi!</div>
+    <div class="success-sub" id="success-text">Telegramdan tasdiqlash xabari yuboriladi.</div>
+    <button class="btn-primary" style="margin-top:28px;width:240px;" id="btn-go-mybookings">
+      <i class="fa-regular fa-calendar-check"></i> Bronlarimga o'tish
+    </button>
+    <button class="btn-primary btn-secondary" style="margin-top:6px;width:240px;" id="btn-close-app">
+      <i class="fa-solid fa-xmark"></i> Yopish
+    </button>
+  </div>
+</div>
+
+<!-- ══════════ MY BOOKINGS ══════════ -->
+<div class="screen" id="s-my-bookings">
+  <div class="topbar">
+    <div class="topbar-logo">Bronlarim</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="my-bookings-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ BOOKING DETAIL ══════════ -->
+<div class="screen" id="s-booking-detail">
+  <div class="topbar">
+    <div class="topbar-logo">Bron</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="booking-detail-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+
+<!-- ══════════ ROLE SELECTION ══════════ -->
+<div class="screen" id="s-role">
+  <div class="topbar">
+    <div class="topbar-logo">Barber<span>Shop</span></div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="role-hero">
+    <div class="role-hero-icon">✂️</div>
+    <h2>Siz kimsiz?</h2>
+    <p>Platformadan foydalanish turini tanlang</p>
+  </div>
+  <div class="role-cards">
+    <div class="role-card" onclick="chooseRole('client')">
+      <div class="role-card-icon">👤</div>
+      <div class="role-card-title">Mijoz</div>
+      <div class="role-card-desc">Salon topib, onlayn bron qilish</div>
+    </div>
+    <div class="role-card" onclick="chooseRole('barber')">
+      <div class="role-card-icon">💈</div>
+      <div class="role-card-title">Barber</div>
+      <div class="role-card-desc">O'z xizmatlarini taklif qilish</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ BARBER REGISTER — STEP 1 ══════════ -->
+<div class="screen" id="s-breg-1">
+  <div class="topbar">
+    <div class="topbar-logo">Ro'yxat</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="step-bar">
+    <div class="step-dot active"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+  </div>
+  <div class="step-label">Shaxsiy ma'lumotlar</div>
+
+  <div class="form-group">
+    <label class="form-label">Ism *</label>
+    <input class="form-input" id="reg-first-name" type="text" placeholder="Sardor">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Familiya</label>
+    <input class="form-input" id="reg-last-name" type="text" placeholder="Karimov">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Telefon raqam</label>
+    <input class="form-input" id="reg-phone" type="tel" placeholder="+998 90 123 45 67">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Shahar / Manzil *</label>
+    <input class="form-input" id="reg-city" type="text" placeholder="Toshkent, Chilonzor tumani">
+  </div>
+  <div class="form-group">
+    <label class="form-label">O'zingiz haqida</label>
+    <textarea class="form-input" id="reg-bio" placeholder="Tajribam, ixtisosligim..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Tajriba (yil)</label>
+    <input class="form-input" id="reg-exp" type="number" min="0" max="50" placeholder="3">
+  </div>
+  <div class="error-box" id="breg1-err"></div>
+  <button class="btn-primary" style="margin-top:8px;" onclick="bregStep1Next()">
+    Davom etish <i class="fa-solid fa-arrow-right"></i>
+  </button>
+</div>
+
+<!-- ══════════ BARBER REGISTER — STEP 2 ══════════ -->
+<div class="screen" id="s-breg-2">
+  <div class="topbar">
+    <div class="topbar-logo">Mutaxassislik</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="step-bar">
+    <div class="step-dot done"></div>
+    <div class="step-dot active"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+  </div>
+  <div class="step-label">Kimlar bilan ishlaysiz?</div>
+
+  <div class="spec-grid">
+    <div class="spec-card selected" id="spec-men" onclick="pickSpec('men')">
+      <div class="spec-card-icon">👨</div>
+      <div class="spec-card-label">Erkaklar</div>
+    </div>
+    <div class="spec-card" id="spec-women" onclick="pickSpec('women')">
+      <div class="spec-card-icon">👩</div>
+      <div class="spec-card-label">Ayollar</div>
+    </div>
+    <div class="spec-card" id="spec-all" onclick="pickSpec('all')">
+      <div class="spec-card-icon">👥</div>
+      <div class="spec-card-label">Hammasi</div>
+    </div>
+  </div>
+  <button class="btn-primary" style="margin:16px 14px 0;" onclick="bregStep2Next()">
+    Davom etish <i class="fa-solid fa-arrow-right"></i>
+  </button>
+</div>
+
+<!-- ══════════ BARBER REGISTER — STEP 3: SALON ══════════ -->
+<div class="screen" id="s-breg-salon">
+  <div class="topbar">
+    <div class="topbar-logo">Salon</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="step-bar">
+    <div class="step-dot done"></div>
+    <div class="step-dot done"></div>
+    <div class="step-dot active"></div>
+    <div class="step-dot"></div>
+  </div>
+  <div class="step-label">Qaysi salonda ishlaysiz?</div>
+
+  <div id="salon-list-wrap">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+
+  <!-- Yangi salon formasi (yashirin, "Yangi salon" tanlanganda ochiladi) -->
+  <div id="new-salon-form" style="display:none;padding:0 14px;">
+    <!-- Logo picker -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+      <div class="salon-logo-pick" id="new-salon-logo-pick" onclick="document.getElementById('new-salon-logo-input').click()">
+        <i class="fa-solid fa-image"></i>
+        <span>Logo</span>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">Salon logotipi</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Ixtiyoriy • JPG, PNG, max 5MB</div>
+      </div>
+    </div>
+    <input type="file" id="new-salon-logo-input" accept="image/*" style="display:none"
+           onchange="handleNewSalonLogo(this)">
+    <div class="form-group">
+      <label class="form-label">Salon nomi *</label>
+      <input class="form-input" id="new-salon-name" type="text" placeholder="Sardor Barber Shop">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Manzil *</label>
+      <input class="form-input" id="new-salon-addr" type="text" placeholder="Toshkent, Chilonzor tumani, 5-mavze">
+    </div>
+  </div>
+
+  <div class="error-box" id="breg-salon-err"></div>
+  <button class="btn-primary" style="margin:12px 14px 0;" onclick="bregSalonNext()">
+    Davom etish <i class="fa-solid fa-arrow-right"></i>
+  </button>
+</div>
+
+<!-- ══════════ BARBER REGISTER — STEP 4: XIZMATLAR ══════════ -->
+<div class="screen" id="s-breg-3">
+  <div class="topbar">
+    <div class="topbar-logo">Xizmatlar</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div class="step-bar">
+    <div class="step-dot done"></div>
+    <div class="step-dot done"></div>
+    <div class="step-dot done"></div>
+    <div class="step-dot active"></div>
+  </div>
+  <div class="step-label">Xizmatlaringizni tanlang va narx kiriting</div>
+
+  <div id="predefined-svc-list">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+
+  <div class="sec-label" style="margin-top:4px;">Maxsus xizmat qo'shish</div>
+  <div class="custom-svc-row">
+    <input class="form-input" id="csvc-name" placeholder="Xizmat nomi">
+    <input class="form-input" id="csvc-dur" type="number" placeholder="min" min="5">
+    <input class="form-input" id="csvc-price" type="number" placeholder="so'm" min="0">
+  </div>
+  <button class="btn-primary btn-secondary" style="margin-top:4px;" onclick="addCustomSvc()">
+    <i class="fa-solid fa-plus"></i> Qo'shish
+  </button>
+  <div class="error-box" id="breg3-err"></div>
+  <button class="btn-primary" id="breg3-save-btn" style="margin-top:8px;" onclick="submitBarberReg()">
+    <i class="fa-solid fa-check"></i> Saqlash va tugatish
+  </button>
+</div>
+
+<!-- ══════════ BARBER DASHBOARD ══════════ -->
+<div class="screen" id="s-barber-dash">
+  <div class="topbar">
+    <div class="topbar-logo">Kabinetim</div>
+    <button class="topbar-action" onclick="showBarberEdit()" title="Tahrirlash">
+      <i class="fa-solid fa-pen-to-square"></i>
+    </button>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="barber-dash-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ BARBER EDIT PROFILE ══════════ -->
+<div class="screen" id="s-barber-edit">
+  <div class="topbar">
+    <div class="topbar-logo">Tahrirlash</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+
+  <!-- Avatar -->
+  <div class="edit-avatar-row">
+    <div class="avatar-wrap" onclick="pickAvatar()">
+      <div id="edit-avatar-placeholder" class="avatar-placeholder">
+        <i class="fa-solid fa-user"></i>
+      </div>
+      <img id="edit-avatar-img" class="avatar-img" style="display:none;" src="" alt="Avatar">
+      <div class="avatar-upload-btn"><i class="fa-solid fa-camera"></i></div>
+    </div>
+    <div style="flex:1;">
+      <div style="font-family:var(--font-head);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">
+        Profil rasmi
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;">Rasmga bosib yangilang</div>
+    </div>
+  </div>
+  <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarPick(this)">
+
+  <div class="sec-label">Shaxsiy ma'lumotlar</div>
+  <div class="form-group"><label class="form-label">Ism</label>
+    <input class="form-input" id="edit-first-name" type="text"></div>
+  <div class="form-group"><label class="form-label">Familiya</label>
+    <input class="form-input" id="edit-last-name" type="text"></div>
+  <div class="form-group"><label class="form-label">Telefon</label>
+    <input class="form-input" id="edit-phone" type="tel"></div>
+  <div class="form-group"><label class="form-label">Bio</label>
+    <textarea class="form-input" id="edit-bio" rows="3" placeholder="O'zingiz haqida..."></textarea></div>
+  <div class="form-group"><label class="form-label">Tajriba (yil)</label>
+    <input class="form-input" id="edit-exp" type="number" min="0" max="50"></div>
+
+  <div class="sec-label">Mutaxassislik</div>
+  <div class="spec-grid">
+    <div class="spec-card" id="edit-spec-men" onclick="editPickSpec('men')">
+      <div class="spec-card-icon">👨</div><div class="spec-card-label">Erkaklar</div>
+    </div>
+    <div class="spec-card" id="edit-spec-women" onclick="editPickSpec('women')">
+      <div class="spec-card-icon">👩</div><div class="spec-card-label">Ayollar</div>
+    </div>
+    <div class="spec-card" id="edit-spec-all" onclick="editPickSpec('all')">
+      <div class="spec-card-icon">👥</div><div class="spec-card-label">Hammasi</div>
+    </div>
+  </div>
+
+  <div class="sec-label">Salon ma'lumotlari</div>
+  <!-- Salon logo -->
+  <div style="display:flex;align-items:center;gap:14px;padding:8px 14px;">
+    <div class="salon-logo-pick" id="edit-salon-logo-pick" onclick="pickSalonLogo()">
+      <i class="fa-solid fa-image"></i>
+      <span>Rasm</span>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Salon logotipi</div>
+      <div style="font-size:11px;color:var(--muted);">Rasmga bosib yangilang</div>
+    </div>
+  </div>
+  <input type="file" id="salon-logo-input" accept="image/*" style="display:none" onchange="handleSalonLogoPick(this)">
+
+  <div class="form-group"><label class="form-label">Salon nomi</label>
+    <input class="form-input" id="edit-shop-name" type="text"></div>
+  <div class="form-group"><label class="form-label">Salon manzili</label>
+    <input class="form-input" id="edit-shop-addr" type="text"></div>
+
+  <div class="error-box" id="edit-profile-err"></div>
+  <button class="btn-primary" id="edit-save-btn" onclick="saveBarberProfile()" style="margin-bottom:24px;">
+    <i class="fa-solid fa-floppy-disk"></i> Saqlash
+  </button>
+</div>
+
+<!-- ══════════ SUPPORT ══════════ -->
+<div class="screen" id="s-support">
+  <div class="topbar">
+    <div class="topbar-logo">Yordam</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+
+  <div class="support-hero">
+    <div class="support-hero-icon">💬</div>
+    <div class="support-hero-title">Murojaat qiling</div>
+    <div class="support-hero-sub">Savol yoki takliflaringizni yuboring,<br>tez orada javob beramiz.</div>
+    <div class="support-email-tag">
+      <i class="fa-solid fa-envelope"></i> sayfulloh.dev@gmail.com
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Xabaringiz *</label>
+    <textarea class="form-input" id="support-msg" rows="5"
+      placeholder="Muammo yoki taklifingizni yozing..."></textarea>
+  </div>
+  <div class="error-box" id="support-err"></div>
+  <div class="success-box" id="support-ok" style="display:none;">
+    <i class="fa-solid fa-circle-check"></i> Xabaringiz yuborildi! Tez orada javob beramiz.
+  </div>
+  <button class="btn-primary" id="support-send-btn" onclick="submitSupport()">
+    <i class="fa-solid fa-paper-plane"></i> Yuborish
+  </button>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// Telegram WebApp Init
+// ══════════════════════════════════════════════════════
+const tg = window.Telegram.WebApp;
+tg.expand();
+tg.ready();
+tg.enableClosingConfirmation();
+
+const DEBUG = {{ DEBUG|yesno:"true,false" }};
+
+// ══════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════
+const bk = {
+  shopSlug:null, shopName:null,
+  serviceId:null, serviceName:null, serviceDuration:null, servicePrice:null,
+  barberId:null, barberName:null,
+  date:null, time:null,
+};
+let shopCache = null;
+let screenStack = [];
+
+// ══════════════════════════════════════════════════════
+// Navigation
+// ══════════════════════════════════════════════════════
+function goTo(id) {
+  const cur = document.querySelector('.screen.active');
+  const nxt = document.getElementById(id);
+  if (!nxt || (cur && cur.id === id)) return;
+  screenStack.push(id);
+  if (cur) cur.classList.add('leaving');
+  nxt.classList.add('active');
+  setTimeout(() => { if (cur) cur.classList.remove('active','leaving'); }, 300);
+  updateNav();
+}
+
+function goBack() {
+  if (screenStack.length <= 1) return;
+  screenStack.pop();
+  const prev = screenStack[screenStack.length - 1];
+  const cur = document.querySelector('.screen.active');
+  const tgt = document.getElementById(prev);
+  if (!tgt) return;
+  tgt.style.transform = 'translateX(-20%)';
+  tgt.classList.add('active');
+  requestAnimationFrame(() => {
+    tgt.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1)';
+    tgt.style.transform = 'translateX(0)';
+  });
+  setTimeout(() => {
+    tgt.style.transition = '';
+    tgt.style.transform = '';
+    if (cur) cur.classList.remove('active');
+  }, 300);
+  updateNav();
+}
+
+function updateNav() {
+  const hasBack = screenStack.length > 1;
+  tg.BackButton[hasBack ? 'show' : 'hide']();
+  tg.MainButton.hide();
+  // In-app back button
+  const backBtn = document.getElementById('global-back-btn');
+  if (backBtn) backBtn.classList.toggle('show', hasBack);
+  document.body.classList.toggle('has-back', hasBack);
+}
+
+tg.BackButton.onClick(goBack);
+
+function first(id) {
+  screenStack = [id];
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active','leaving','no-anim');
+  });
+  const el = document.getElementById(id);
+  el.classList.add('active','no-anim');
+  requestAnimationFrame(() => el.classList.remove('no-anim'));
+  updateNav();
+}
+
+// ══════════════════════════════════════════════════════
+// HTTP
+// ══════════════════════════════════════════════════════
+function authHeaders() {
+  const h = { 'Content-Type':'application/json' };
+  if (tg.initData) h['Authorization'] = 'tma ' + tg.initData;
+  return h;
+}
+function csrf() {
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+async function GET(path) {
+  const r = await fetch(path, { headers: authHeaders() });
+  if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+  return r.json();
+}
+async function POST(path, body) {
+  const r = await fetch(path, {
+    method:'POST',
+    headers: { ...authHeaders(), 'X-CSRFToken': csrf() },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+
+// ══════════════════════════════════════════════════════
+// Shops List
+// ══════════════════════════════════════════════════════
+async function loadShops() {
+  const el = document.getElementById('shops-content');
+  try {
+    const { shops } = await GET('/api/shops/');
+    if (!shops.length) {
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">✂️</div>
+        <div class="empty-title">Salonlar yo'q</div></div>`;
+      return;
+    }
+    let html = '<div class="sec-label">Salonlar</div>';
+    shops.forEach(s => {
+      html += `
+      <div class="shop-card" onclick="openShop('${s.slug}')">
+        <div class="shop-card-inner">
+          <div class="shop-avatar">
+            ${s.logo_url ? `<img src="${s.logo_url}" alt="">` : '✂️'}
+          </div>
+          <div class="shop-info">
+            <div class="shop-name">${esc(s.name)}</div>
+            <div class="shop-addr"><i class="fa-solid fa-location-dot" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${esc(s.address)}</div>
+          </div>
+        </div>
+        <div class="shop-card-footer">
+          <span><i class="fa-solid fa-scissors" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${s.barbers_count} sartarosh</span>
+          <i class="fa-solid fa-chevron-right"></i>
+        </div>
+      </div>`;
+    });
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
+      <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// Shop Detail
+// ══════════════════════════════════════════════════════
+async function openShop(slug) {
+  goTo('s-shop');
+  const el = document.getElementById('shop-detail-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const s = await GET(`/api/shops/${slug}/`);
+    shopCache = s;
+    bk.shopSlug = s.slug; bk.shopName = s.name;
+
+    const coverHtml = s.cover_url
+      ? `<div class="cover-wrap">
+           <img class="cover-img" src="${s.cover_url}" alt="">
+           <div class="cover-overlay"></div>
+           <div class="cover-title">
+             <h2>${esc(s.name)}</h2>
+             <div class="gold-sub">${s.barbers.length} Master Barber</div>
+           </div>
+         </div>`
+      : `<div class="cover-placeholder">
+           <div style="text-align:center;">
+             <div style="font-size:48px;margin-bottom:8px;">✂️</div>
+             <div style="font-family:var(--font-head);font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gold);">${esc(s.name)}</div>
+           </div>
+         </div>`;
+
+    el.innerHTML = `
+      ${coverHtml}
+      ${s.description ? `<div style="padding:14px 16px;color:var(--muted);font-size:13px;line-height:1.6;border-bottom:1px solid rgba(255,255,255,.04);">${esc(s.description)}</div>` : ''}
+      <div class="info-block">
+        <div class="info-row"><i class="fa-solid fa-location-dot"></i><span class="info-row-text">${esc(s.address)}</span></div>
+        <div class="info-row"><i class="fa-solid fa-phone"></i><span class="info-row-text">${esc(s.phone)}</span></div>
+        ${s.telegram_url ? `<div class="info-row"><i class="fa-brands fa-telegram"></i><a href="${s.telegram_url}" class="info-link">Telegram kanal</a></div>` : ''}
+        ${s.instagram_url ? `<div class="info-row"><i class="fa-brands fa-instagram"></i><a href="${s.instagram_url}" class="info-link">Instagram</a></div>` : ''}
+      </div>
+
+      <div class="tabs" id="shop-tabs">
+        <div class="tab active" onclick="shopTab('services',this)">Xizmatlar (${s.services.length})</div>
+        <div class="tab" onclick="shopTab('barbers',this)">Ustalar (${s.barbers.length})</div>
+        <div class="tab" onclick="shopTab('hours',this)">Ish vaqti</div>
+      </div>
+
+      <div id="tab-services">${renderServices(s.services)}</div>
+      <div id="tab-barbers" style="display:none;">${renderBarbers(s.barbers)}</div>
+      <div id="tab-hours" style="display:none;">${renderHours(s.working_hours)}</div>
+    `;
+
+    tg.MainButton.setText('✂  BRON QILISH').show().onClick(() => {
+      tg.MainButton.offClick();
+      startBooking();
+    });
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
+      <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function shopTab(name, el) {
+  document.querySelectorAll('#shop-tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['services','barbers','hours'].forEach(n =>
+    document.getElementById('tab-'+n).style.display = n===name ? '' : 'none'
+  );
+}
+
+function renderServices(services) {
+  if (!services.length) return `<div class="empty-wrap"><div class="empty-sub">Xizmatlar topilmadi</div></div>`;
+  let html = '<ul class="price-list">';
+  services.forEach(s => {
+    html += `
+    <li class="price-item" onclick="pickService('${s.id}','${esc(s.name)}',${s.duration},'${s.price}')">
+      <div class="pi-left">
+        <div class="pi-name">${esc(s.name)}</div>
+        <div class="pi-meta">${s.duration} daqiqa${s.category ? ' · ' + esc(s.category) : ''}</div>
+      </div>
+      <div class="pi-dots"></div>
+      <div class="pi-price">${fmtP(s.price)}</div>
+    </li>`;
+  });
+  return html + '</ul>';
+}
+
+function renderBarbers(barbers) {
+  if (!barbers.length) return `<div class="empty-wrap"><div class="empty-sub">Ustalar topilmadi</div></div>`;
+  let html = '<div class="barber-grid">';
+  barbers.forEach(b => {
+    html += `
+    <div class="barber-card" onclick="pickBarberFromShop('${b.id}','${esc(b.name)}',${b.slot_duration})">
+      <div class="barber-photo">
+        ${b.avatar_url ? `<img src="${b.avatar_url}" alt="">` : '💈'}
+      </div>
+      <div class="barber-foot">
+        <div class="barber-name">${esc(b.name)}</div>
+        <div class="barber-role">Master Barber</div>
+        <div class="barber-exp">${b.experience_years} yil tajriba</div>
+      </div>
+    </div>`;
+  });
+  return html + '</div>';
+}
+
+function renderHours(hours) {
+  if (!hours.length) return `<div class="empty-wrap"><div class="empty-sub">Ma'lumot yo'q</div></div>`;
+  let html = '<div class="info-block" style="margin-top:10px;"><div class="wh-grid">';
+  hours.forEach(h => {
+    const time = h.is_day_off
+      ? '<div class="wh-time wh-off">Dam olish</div>'
+      : `<div class="wh-time">${h.open} – ${h.close}</div>`;
+    html += `<div class="wh-item"><div class="wh-day">${h.day_name.slice(0,3)}</div>${time}</div>`;
+  });
+  return html + '</div></div>';
+}
+
+// ══════════════════════════════════════════════════════
+// Booking Flow
+// ══════════════════════════════════════════════════════
+function startBooking() {
+  bk.serviceId = bk.serviceName = bk.serviceDuration = bk.servicePrice = null;
+  bk.barberId = bk.barberName = null;
+  bk.date = bk.time = null;
+  // Only keep shop in stack
+  while (screenStack.length > 1) screenStack.pop();
+  showServiceScreen();
+}
+
+// — Service screen —
+function showServiceScreen() {
+  if (!shopCache) return;
+  document.getElementById('service-content').innerHTML = renderServices(shopCache.services);
+  goTo('s-service');
+  tg.MainButton.hide();
+}
+
+function pickService(id, name, duration, price) {
+  bk.serviceId = id; bk.serviceName = name;
+  bk.serviceDuration = duration; bk.servicePrice = price;
+  tg.HapticFeedback.selectionChanged();
+  showBarberScreen();
+}
+
+function pickServiceFromShop(id, name, duration, price) {
+  bk.serviceId = id; bk.serviceName = name;
+  bk.serviceDuration = duration; bk.servicePrice = price;
+  tg.HapticFeedback.selectionChanged();
+  showBarberScreen();
+}
+
+// — Barber screen —
+function showBarberScreen() {
+  if (!shopCache) return;
+  document.getElementById('barber-content').innerHTML = renderBarbers(shopCache.barbers);
+  goTo('s-barber');
+  tg.MainButton.hide();
+}
+
+function pickBarberFromShop(id, name, slotDur) {
+  bk.barberId = id; bk.barberName = name;
+  tg.HapticFeedback.selectionChanged();
+  showDatetimeScreen();
+}
+
+function pickBarber(id, name, slotDur) {
+  bk.barberId = id; bk.barberName = name;
+  tg.HapticFeedback.selectionChanged();
+  showDatetimeScreen();
+}
+
+// — DateTime screen —
+function showDatetimeScreen() {
+  const today = new Date().toISOString().split('T')[0];
+  const inp = document.getElementById('date-input');
+  inp.min = today; inp.value = today;
+  bk.date = today; bk.time = null;
+  goTo('s-datetime');
+  tg.MainButton.hide();
+  loadSlots(today);
+}
+
+document.getElementById('date-input').addEventListener('change', function(){
+  bk.date = this.value; bk.time = null;
+  tg.MainButton.hide();
+  loadSlots(this.value);
+});
+
+async function loadSlots(date) {
+  const el = document.getElementById('slots-area');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">BO\'SH VAQTLAR</div></div>';
+  try {
+    const { slots } = await GET(`/api/slots/?barber_id=${bk.barberId}&date=${date}`);
+    if (!slots.length) {
+      el.innerHTML = `<div class="empty-wrap">
+        <div class="empty-icon" style="font-size:32px;">😔</div>
+        <div class="empty-title">Bo'sh vaqt yo'q</div>
+        <div class="empty-sub">Boshqa kun tanlang</div></div>`;
+      return;
+    }
+    let html = '<div class="sec-label">Bo\'sh vaqtlar</div><div class="slots-wrap"><div class="slots-grid">';
+    slots.forEach(t => {
+      html += `<div class="slot-btn" data-time="${t}" onclick="pickSlot(this,'${t}')">${t}</div>`;
+    });
+    el.innerHTML = html + '</div></div>';
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function pickSlot(el, time) {
+  document.querySelectorAll('.slot-btn').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  bk.time = time;
+  tg.HapticFeedback.selectionChanged();
+  tg.MainButton.setText('DAVOM ETISH  →').show().onClick(() => {
+    tg.MainButton.offClick();
+    showConfirmScreen();
+  });
+}
+
+// — Confirm screen —
+function showConfirmScreen() {
+  document.getElementById('confirm-err').style.display = 'none';
+  document.getElementById('confirm-summary').innerHTML = `
+    <div class="sum-row"><span class="sum-label">Salon</span><span class="sum-val">${esc(bk.shopName)}</span></div>
+    <div class="sum-row"><span class="sum-label">Xizmat</span><span class="sum-val">${esc(bk.serviceName)}</span></div>
+    <div class="sum-row"><span class="sum-label">Davomiyligi</span><span class="sum-val">${bk.serviceDuration} daqiqa</span></div>
+    <div class="sum-row"><span class="sum-label">Usta</span><span class="sum-val">${esc(bk.barberName)}</span></div>
+    <div class="sum-row"><span class="sum-label">Sana</span><span class="sum-val">${fmtDate(bk.date)}</span></div>
+    <div class="sum-row"><span class="sum-label">Vaqt</span><span class="sum-val">${bk.time}</span></div>
+    <div class="sum-row"><span class="sum-label">Narx</span><span class="sum-val sum-price">${fmtP(bk.servicePrice)}</span></div>
+  `;
+  goTo('s-confirm');
+  tg.MainButton.setText('✓  TASDIQLASH').show().onClick(() => {
+    tg.MainButton.offClick();
+    confirmBooking();
+  });
+}
+
+async function confirmBooking() {
+  tg.MainButton.showProgress(true);
+  document.getElementById('confirm-err').style.display = 'none';
+  try {
+    const d = await POST('/api/bookings/', {
+      barber_id:bk.barberId, service_id:bk.serviceId, date:bk.date, time:bk.time
+    });
+    tg.MainButton.hideProgress();
+    tg.HapticFeedback.notificationOccurred('success');
+    document.getElementById('success-text').textContent =
+      `${d.service} · ${d.date} soat ${d.time}`;
+    first('s-success');
+    tg.BackButton.hide();
+    tg.MainButton.hide();
+  } catch(e) {
+    tg.MainButton.hideProgress();
+    tg.HapticFeedback.notificationOccurred('error');
+    const errEl = document.getElementById('confirm-err');
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    tg.MainButton.setText('✓  TASDIQLASH').show().onClick(() => {
+      tg.MainButton.offClick(); confirmBooking();
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// My Bookings
+// ══════════════════════════════════════════════════════
+async function loadMyBookings() {
+  goTo('s-my-bookings');
+  tg.MainButton.hide();
+  const el = document.getElementById('my-bookings-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const { appointments } = await GET('/api/my-bookings/');
+    if (!appointments.length) {
+      el.innerHTML = `<div class="empty-wrap">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">Bronlar yo'q</div>
+        <div class="empty-sub">Hali bron qilmagansiz</div>
+      </div>`;
+      return;
+    }
+    const upcoming = appointments.filter(a => a.can_cancel);
+    const past = appointments.filter(a => !a.can_cancel);
+    let html = '';
+    if (upcoming.length) {
+      html += '<div class="sec-label">Kelayotgan</div><div class="booking-list">';
+      upcoming.forEach(a => { html += bookingCard(a); });
+      html += '</div>';
+    }
+    if (past.length) {
+      html += '<div class="sec-label">O\'tganlar</div><div class="booking-list">';
+      past.forEach(a => { html += bookingCard(a); });
+      html += '</div>';
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-title">Xatolik</div>
+      <div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function bookingCard(a) {
+  return `
+  <div class="booking-item" onclick="openDetail('${a.id}')">
+    <div style="flex:1;min-width:0;">
+      <div class="booking-shop">${esc(a.shop_name)}</div>
+      <div class="booking-service">${esc(a.service_name)} · ${esc(a.barber_name)}</div>
+      <div class="booking-when">
+        <i class="fa-regular fa-calendar"></i>${a.date}
+        <i class="fa-regular fa-clock" style="margin-left:6px;"></i>${a.time}
+      </div>
+    </div>
+    <span class="badge badge-${a.status}">${a.status_display}</span>
+  </div>`;
+}
+
+let detailCache = [];
+async function openDetail(id) {
+  goTo('s-booking-detail');
+  tg.MainButton.hide();
+  const el = document.getElementById('booking-detail-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const { appointments } = await GET('/api/my-bookings/');
+    detailCache = appointments;
+    const a = appointments.find(x => x.id === id);
+    if (!a) { el.innerHTML = '<div class="empty-wrap"><div class="empty-title">Topilmadi</div></div>'; return; }
+    el.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-icon"><i class="fa-solid fa-scissors"></i></div>
+        <div>
+          <div class="detail-shop">${esc(a.shop_name)}</div>
+          <div class="detail-service">${esc(a.service_name)}</div>
+        </div>
+        <span class="badge badge-${a.status}" style="margin-left:auto;">${a.status_display}</span>
+      </div>
+      <div class="sec-label">Ma'lumotlar</div>
+      <div class="summary-box">
+        <div class="sum-row"><span class="sum-label">Xizmat</span><span class="sum-val">${esc(a.service_name)}</span></div>
+        <div class="sum-row"><span class="sum-label">Usta</span><span class="sum-val">${esc(a.barber_name)}</span></div>
+        <div class="sum-row"><span class="sum-label">Sana</span><span class="sum-val">${a.date}</span></div>
+        <div class="sum-row"><span class="sum-label">Vaqt</span><span class="sum-val">${a.time} – ${a.end_time}</span></div>
+        <div class="sum-row"><span class="sum-label">Narx</span><span class="sum-val sum-price">${fmtP(a.price)}</span></div>
+      </div>
+      ${a.can_cancel ? `<button class="btn-primary btn-danger" onclick="cancelBooking('${a.id}')">
+        <i class="fa-solid fa-xmark"></i> Bronni bekor qilish
+      </button>` : ''}
+    `;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+async function cancelBooking(id) {
+  const ok = await new Promise(r => tg.showConfirm('Bronni bekor qilmoqchimisiz?', r));
+  if (!ok) return;
+  try {
+    await POST(`/api/bookings/${id}/cancel/`, {});
+    tg.HapticFeedback.notificationOccurred('success');
+    goBack();
+    loadMyBookings();
+  } catch(e) {
+    tg.showAlert('Xatolik: ' + e.message);
+    tg.HapticFeedback.notificationOccurred('error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtP(p) {
+  return parseInt(p).toLocaleString('uz-UZ') + ' so\'m';
+}
+function fmtDate(iso) {
+  const [y,m,d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+// ══════════════════════════════════════════════════════
+// Theme Toggle
+// ══════════════════════════════════════════════════════
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const icon = theme === 'light' ? 'fa-sun' : 'fa-moon';
+  document.querySelectorAll('.theme-btn i').forEach(i => {
+    i.className = `fa-solid ${icon}`;
+  });
+  localStorage.setItem('theme', theme);
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+  tg.HapticFeedback.selectionChanged();
+}
+
+// Saved theme ni yuklash
+applyTheme(localStorage.getItem('theme') || 'dark');
+
+// ══════════════════════════════════════════════════════
+// Nav Overlay
+// ══════════════════════════════════════════════════════
+function openNav() {
+  document.getElementById('nav-overlay').classList.add('open');
+  document.getElementById('nav-backdrop').classList.add('open');
+  document.querySelectorAll('.burger').forEach(b => b.classList.add('open'));
+  tg.BackButton.hide();
+}
+
+function closeNav() {
+  document.getElementById('nav-overlay').classList.remove('open');
+  document.getElementById('nav-backdrop').classList.remove('open');
+  document.querySelectorAll('.burger').forEach(b => b.classList.remove('open'));
+  updateNav();
+}
+
+function navGo(target) {
+  closeNav();
+  setTimeout(() => {
+    if (target === 'shops') {
+      first('s-shops');
+    } else if (target === 'my-bookings') {
+      loadMyBookings();
+    } else if (target === 'barber-dash') {
+      loadBarberDash();
+    } else if (target === 'become-barber') {
+      startBarberReg();
+    } else if (target === 'support') {
+      goTo('s-support');
+      document.getElementById('support-err').style.display = 'none';
+      document.getElementById('support-ok').style.display = 'none';
+      document.getElementById('support-msg').value = '';
+      const btn = document.getElementById('support-send-btn');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yuborish';
+    }
+  }, 280);
+}
+
+// ══════════════════════════════════════════════════════
+// Event Bindings
+// ══════════════════════════════════════════════════════
+document.getElementById('btn-go-mybookings').addEventListener('click', () => { screenStack=[]; loadMyBookings(); });
+document.getElementById('btn-close-app').addEventListener('click', () => tg.close());
+
+// Delegate clicks inside service-content (dynamically rendered)
+document.getElementById('service-content').addEventListener('click', e => {
+  const li = e.target.closest('.price-item[onclick]');
+  if (li) { const fn = li.getAttribute('onclick'); if (fn) eval(fn); }
+});
+
+// ══════════════════════════════════════════════════════
+// Barber Registration State
+// ══════════════════════════════════════════════════════
+// reg.selectedSvcs: Map<index, {price, duration}> — har bir tanlangan xizmat uchun narx/vaqt
+const reg = { spec: 'men', selectedSvcs: new Map(), allPredefined: [], shopId: null, newShopName: '', newShopAddress: '' };
+
+function startBarberReg() {
+  ['reg-first-name','reg-last-name','reg-phone','reg-city','reg-bio','reg-exp'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  reg.spec = 'men'; reg.selectedSvcs = new Map(); reg.allPredefined = [];
+  reg.shopId = null; reg.newShopName = ''; reg.newShopAddress = '';
+  regSalonLogoFile = null;
+  pickSpec('men');
+  document.getElementById('breg1-err').style.display = 'none';
+  goTo('s-breg-1');
+  tg.MainButton.hide();
+}
+
+function chooseRole(role) {
+  tg.HapticFeedback.selectionChanged();
+  if (role === 'client') first('s-shops');
+  else startBarberReg();
+}
+
+function bregStep1Next() {
+  const fn   = document.getElementById('reg-first-name').value.trim();
+  const city = document.getElementById('reg-city').value.trim();
+  const err  = document.getElementById('breg1-err');
+  if (!fn || !city) {
+    err.textContent = 'Ism va shahar majburiy maydon!';
+    err.style.display = 'block';
+    tg.HapticFeedback.notificationOccurred('error');
+    return;
+  }
+  err.style.display = 'none';
+  tg.HapticFeedback.selectionChanged();
+  goTo('s-breg-2');
+  tg.MainButton.hide();
+}
+
+function bregStep2Next() {
+  tg.HapticFeedback.selectionChanged();
+  goTo('s-breg-salon');
+  loadShopsForReg();
+  tg.MainButton.hide();
+}
+
+async function loadShopsForReg() {
+  const wrap = document.getElementById('salon-list-wrap');
+  wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const { shops } = await GET('/api/shops/');
+    const items = shops.map(s => `
+      <div class="salon-pick-item" data-id="${s.id}" onclick="pickSalon('${s.id}',null,null,this)">
+        <div class="salon-pick-radio"></div>
+        <div class="salon-pick-info">
+          <div class="salon-pick-name">${esc(s.name)}</div>
+          <div class="salon-pick-addr"><i class="fa-solid fa-location-dot" style="font-size:10px;margin-right:4px;"></i>${esc(s.address)}</div>
+        </div>
+      </div>`).join('');
+    wrap.innerHTML = `<div style="background:var(--bg2);border-radius:var(--radius-lg);margin:6px 14px;overflow:hidden;">${items}</div>`;
+    // Yangi salon tugmasi
+    wrap.insertAdjacentHTML('beforeend', `
+      <div class="salon-new-btn" id="salon-new-btn" onclick="pickSalon(null,'new',null,this)">
+        <i class="fa-solid fa-plus"></i> Yangi salon qo'shish
+      </div>`);
+  } catch(e) {
+    wrap.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function pickSalon(id, mode, name, el) {
+  // Oldingi tanlovni olib tashlash
+  document.querySelectorAll('.salon-pick-item.selected, .salon-new-btn.selected')
+    .forEach(x => x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('breg-salon-err').style.display = 'none';
+
+  if (mode === 'new') {
+    reg.shopId = null;
+    document.getElementById('new-salon-form').style.display = 'block';
+    document.getElementById('new-salon-name').focus();
+  } else {
+    reg.shopId = id;
+    document.getElementById('new-salon-form').style.display = 'none';
+  }
+  tg.HapticFeedback.selectionChanged();
+}
+
+function bregSalonNext() {
+  const err = document.getElementById('breg-salon-err');
+  const isNew = !!document.querySelector('.salon-new-btn.selected');
+  const isExisting = !!document.querySelector('.salon-pick-item.selected');
+
+  if (!isNew && !isExisting) {
+    err.textContent = 'Salon tanlang yoki yangi qo\'shing'; err.style.display = 'block';
+    tg.HapticFeedback.notificationOccurred('error'); return;
+  }
+
+  if (isNew) {
+    reg.newShopName = document.getElementById('new-salon-name').value.trim();
+    reg.newShopAddress = document.getElementById('new-salon-addr').value.trim();
+    if (!reg.newShopName || !reg.newShopAddress) {
+      err.textContent = 'Salon nomi va manzilini kiriting'; err.style.display = 'block';
+      tg.HapticFeedback.notificationOccurred('error'); return;
+    }
+  }
+
+  err.style.display = 'none';
+  tg.HapticFeedback.selectionChanged();
+  goTo('s-breg-3');
+  loadPredefinedSvcs();
+  tg.MainButton.hide();
+}
+
+function pickSpec(val) {
+  reg.spec = val;
+  ['men','women','all'].forEach(s =>
+    document.getElementById('spec-'+s).classList.toggle('selected', s === val)
+  );
+  tg.HapticFeedback.selectionChanged();
+}
+
+async function loadPredefinedSvcs() {
+  const el = document.getElementById('predefined-svc-list');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const { services } = await GET('/api/barber/predefined-services/');
+    reg.allPredefined = services;
+    const filtered = services.filter(s => s.group === reg.spec || s.group === 'all');
+    el.innerHTML = filtered.map((s, i) => `
+      <div class="svc-pick-item" data-i="${i}" onclick="toggleSvc(${i},this)">
+        <div class="svc-check"><i class="fa-solid fa-check"></i></div>
+        <div class="svc-pick-info">
+          <div class="svc-pick-name">${esc(s.name)}</div>
+          <div class="svc-pick-meta">${s.duration} daqiqa</div>
+        </div>
+        <div class="svc-pick-price">${fmtP(s.price)}</div>
+      </div>
+      <div class="svc-price-row" id="svc-pr-${i}">
+        <div style="position:relative;">
+          <input class="form-input" id="svc-price-${i}" type="number" min="0" placeholder="Narx" value="${s.price}"
+                 oninput="updateSvcData(${i})" style="padding-right:40px;">
+          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none;">so'm</span>
+        </div>
+        <div style="position:relative;">
+          <input class="form-input" id="svc-dur-${i}" type="number" min="5" placeholder="30" value="${s.duration}"
+                 oninput="updateSvcData(${i})" style="padding-right:32px;">
+          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none;">daq</span>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function toggleSvc(i, el) {
+  el.classList.toggle('selected');
+  const prRow = document.getElementById('svc-pr-' + i);
+  if (el.classList.contains('selected')) {
+    const s = reg.allPredefined[i];
+    reg.selectedSvcs.set(i, { price: s.price, duration: s.duration });
+    if (prRow) prRow.style.display = 'grid';
+  } else {
+    reg.selectedSvcs.delete(i);
+    if (prRow) prRow.style.display = 'none';
+  }
+  tg.HapticFeedback.selectionChanged();
+}
+
+function updateSvcData(i) {
+  if (!reg.selectedSvcs.has(i)) return;
+  const price = parseInt(document.getElementById('svc-price-' + i)?.value) || 0;
+  const dur   = parseInt(document.getElementById('svc-dur-' + i)?.value) || 30;
+  reg.selectedSvcs.set(i, { price, duration: dur });
+}
+
+function addCustomSvc() {
+  const name  = document.getElementById('csvc-name').value.trim();
+  const dur   = parseInt(document.getElementById('csvc-dur').value) || 30;
+  const price = parseInt(document.getElementById('csvc-price').value) || 0;
+  const err   = document.getElementById('breg3-err');
+  if (!name) { err.textContent = 'Xizmat nomini kiriting'; err.style.display='block'; return; }
+  if (!price) { err.textContent = 'Narxni kiriting'; err.style.display='block'; return; }
+  err.style.display = 'none';
+  const i = reg.allPredefined.length;
+  reg.allPredefined.push({ name, duration: dur, price, group: 'custom' });
+  reg.selectedSvcs.set(i, { price, duration: dur });
+  document.getElementById('predefined-svc-list').insertAdjacentHTML('beforeend', `
+    <div class="svc-pick-item selected" data-i="${i}" onclick="toggleSvc(${i},this)">
+      <div class="svc-check"><i class="fa-solid fa-check"></i></div>
+      <div class="svc-pick-info">
+        <div class="svc-pick-name">${esc(name)}</div>
+        <div class="svc-pick-meta">${dur} daqiqa</div>
+      </div>
+      <div class="svc-pick-price">${fmtP(price)}</div>
+    </div>`);
+  document.getElementById('csvc-name').value = '';
+  document.getElementById('csvc-dur').value = '';
+  document.getElementById('csvc-price').value = '';
+  tg.HapticFeedback.notificationOccurred('success');
+}
+
+async function submitBarberReg() {
+  const btn = document.getElementById('breg3-save-btn');
+  const err = document.getElementById('breg3-err');
+  err.style.display = 'none';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>'; }
+
+  try {
+    const payload = {
+      first_name: document.getElementById('reg-first-name').value.trim(),
+      last_name:  document.getElementById('reg-last-name').value.trim(),
+      phone:      document.getElementById('reg-phone').value.trim(),
+      city:       document.getElementById('reg-city').value.trim(),
+      bio:        document.getElementById('reg-bio').value.trim(),
+      specialization: reg.spec,
+      experience_years: parseInt(document.getElementById('reg-exp').value) || 0,
+    };
+    if (reg.shopId) {
+      payload.shop_id = reg.shopId;
+    } else {
+      payload.shop_name    = reg.newShopName;
+      payload.shop_address = reg.newShopAddress;
+    }
+    await POST('/api/barber/register/', payload);
+
+    // Tanlangan xizmatlarni tahrirlangan narx bilan qo'shish
+    const svcs = [...reg.selectedSvcs.entries()].map(([i, data]) => ({
+      name: reg.allPredefined[i].name,
+      duration: data.duration,
+      price: data.price,
+    }));
+    if (svcs.length) {
+      await Promise.all(svcs.map(s => POST('/api/barber/services/', {
+        name: s.name, duration: s.duration, price: s.price
+      })));
+    }
+
+    // Yangi salon uchun logo yuklash
+    if (!reg.shopId && regSalonLogoFile) {
+      try {
+        const fd = new FormData(); fd.append('logo', regSalonLogoFile);
+        await fetch('/api/barber/shop/logo/', { method:'POST', headers: authHeadersRaw(), body: fd });
+      } catch(_) {}
+    }
+
+    tg.HapticFeedback.notificationOccurred('success');
+    userProfile = null;
+    await loadUserProfile();
+    loadBarberDash();
+  } catch(e) {
+    tg.HapticFeedback.notificationOccurred('error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Saqlash va tugatish'; }
+    err.textContent = e.message; err.style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// Barber Dashboard
+// ══════════════════════════════════════════════════════
+async function loadBarberDash() {
+  goTo('s-barber-dash');
+  tg.MainButton.hide();
+  const el = document.getElementById('barber-dash-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const d = await GET('/api/barber/dashboard/');
+    const svcs = await GET('/api/barber/services/');
+
+    const noSvcs = !svcs.services.length;
+    const avatarHtml = d.avatar_url
+      ? `<img src="${d.avatar_url}" class="avatar-img" alt="avatar">`
+      : `<div class="avatar-placeholder"><i class="fa-solid fa-user"></i></div>`;
+    el.innerHTML = `
+      <div class="barber-profile-card">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+          <div class="avatar-wrap" onclick="showBarberEdit()" style="cursor:pointer;">
+            ${avatarHtml}
+            <div class="avatar-upload-btn"><i class="fa-solid fa-camera"></i></div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div class="bpc-name" style="font-size:17px;">${esc(d.name || 'Barber')}</div>
+            <div class="bpc-meta" style="margin-top:4px;">
+              <span class="spec-badge">${{men:'Erkaklar',women:'Ayollar',all:'Hammasi'}[d.specialization||'all']}</span>
+              ${d.experience_years ? `<span class="bpc-exp">${d.experience_years} yil</span>` : ''}
+            </div>
+            ${d.shop_name ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;"><i class="fa-solid fa-store" style="font-size:10px;margin-right:3px;"></i>${esc(d.shop_name)}</div>` : ''}
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row-label">Bronlash qabul qilish</div>
+            <div class="toggle-row-sub" id="accepting-sub">${d.is_accepting ? 'Faol — mijozlar bron qila oladi' : 'O\'chirilgan'}</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="accepting-chk" ${d.is_accepting ? 'checked' : ''} onchange="toggleAccepting(this)">
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="sec-label">
+        Xizmatlarim
+        <span style="color:var(--muted);font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;">(${svcs.services.length})</span>
+      </div>
+      ${noSvcs ? `
+        <div class="empty-svc-prompt">
+          <i class="fa-solid fa-scissors" style="font-size:28px;color:var(--gold);margin-bottom:8px;"></i>
+          <div style="font-weight:600;margin-bottom:4px;">Hali xizmat yo'q</div>
+          <div style="font-size:13px;color:var(--muted);">Xizmatlaringizni qo'shing — mijozlar ko'rishi uchun</div>
+        </div>` : `
+      <ul class="price-list" id="barber-svc-list">
+        ${svcs.services.map(s => `
+        <li class="price-item">
+          <div class="pi-left">
+            <div class="pi-name">${esc(s.name)}</div>
+            <div class="pi-meta">${s.duration} daq</div>
+          </div>
+          <div class="pi-dots"></div>
+          <div class="pi-price">${fmtP(s.price)}</div>
+          <button onclick="deleteSvc('${s.id}')" style="background:none;border:none;color:var(--muted);padding:0 0 0 10px;cursor:pointer;font-size:14px;" title="O'chirish">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </li>`).join('')}
+      </ul>`}
+      <button class="btn-primary btn-secondary" onclick="goToAddService()" style="margin-bottom:16px;">
+        <i class="fa-solid fa-plus"></i> Xizmat qo'shish
+      </button>
+
+      <div class="sec-label">Bugungi statistika</div>
+      <div class="dash-stat-row">
+        <div class="dash-stat">
+          <div class="dash-stat-num">${d.today_count}</div>
+          <div class="dash-stat-label">Bugungi bron</div>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-num">${d.upcoming.length}</div>
+          <div class="dash-stat-label">Kelayotgan</div>
+        </div>
+      </div>
+
+      <div class="sec-label">Kelayotgan bronlar</div>
+      ${d.upcoming.length ? d.upcoming.map(a => `
+        <div class="dash-appt">
+          <div class="dash-time-col">
+            <div class="dash-time">${a.time}</div>
+            <div class="dash-end-time">${a.end_time}</div>
+          </div>
+          <div style="flex:1">
+            <div class="dash-client">${esc(a.client_name)}</div>
+            <div class="dash-svc">${esc(a.service_name)}</div>
+            <div class="dash-price">${fmtP(a.price)}</div>
+          </div>
+          <span class="badge badge-${a.status}">${a.status_display}</span>
+        </div>`).join('')
+      : '<div class="empty-wrap"><div class="empty-sub">Hozircha bron yo\'q</div></div>'}
+    `;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-title">Xatolik</div>
+      <div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+async function toggleAccepting(cb) {
+  const sub = document.getElementById('accepting-sub');
+  try {
+    const r = await POST('/api/barber/toggle-accepting/', { is_accepting: cb.checked });
+    if (sub) sub.textContent = r.is_accepting ? 'Faol — mijozlar bron qila oladi' : 'O\'chirilgan';
+    tg.HapticFeedback.selectionChanged();
+  } catch(e) {
+    cb.checked = !cb.checked; // revert
+    tg.showAlert(e.message);
+  }
+}
+
+async function deleteSvc(id) {
+  const ok = await new Promise(r => tg.showConfirm("Xizmatni o'chirasizmi?", r));
+  if (!ok) return;
+  try {
+    const r = await fetch(`/api/barber/services/${id}/`, {
+      method: 'DELETE', headers: { ...authHeaders(), 'X-CSRFToken': csrf() }
+    });
+    if (!r.ok) throw new Error('Xatolik');
+    tg.HapticFeedback.notificationOccurred('success');
+    loadBarberDash();
+  } catch(e) { tg.showAlert(e.message); }
+}
+
+function goToAddService() {
+  reg.allPredefined = []; reg.selectedSvcs = new Map();
+  // breg3-save-btn ni yashirish — MainButton ishlatamiz
+  const saveBtn = document.getElementById('breg3-save-btn');
+  if (saveBtn) saveBtn.style.display = 'none';
+  goTo('s-breg-3');
+  loadPredefinedSvcs();
+  tg.MainButton.setText('SAQLASH  ✓').show().onClick(async () => {
+    tg.MainButton.offClick();
+    tg.MainButton.showProgress(true);
+    try {
+      const svcs = [...reg.selectedSvcs.entries()].map(([i, data]) => ({
+        name: reg.allPredefined[i].name, duration: data.duration, price: data.price,
+      }));
+      await Promise.all(svcs.map(s => POST('/api/barber/services/', {
+        name: s.name, duration: s.duration, price: s.price
+      })));
+      tg.MainButton.hideProgress();
+      if (saveBtn) saveBtn.style.display = '';
+      goBack(); loadBarberDash();
+    } catch(e) {
+      tg.MainButton.hideProgress();
+      tg.showAlert(e.message);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// Image Upload
+// ══════════════════════════════════════════════════════
+function authHeadersRaw() {
+  // multipart uchun Content-Type yo'q (browser o'zi qo'yadi)
+  const h = {};
+  const initData = tg.initData;
+  if (initData) h['Authorization'] = 'tma ' + initData;
+  return h;
+}
+
+async function uploadImage(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/upload/', {
+    method: 'POST',
+    headers: authHeadersRaw(),
+    body: fd,
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'Yuklash xatosi');
+  return data.url;
+}
+
+// New salon logo during registration
+let regSalonLogoFile = null;
+
+function handleNewSalonLogo(input) {
+  const file = input.files[0]; if (!file) return;
+  regSalonLogoFile = file;
+  const pick = document.getElementById('new-salon-logo-pick');
+  const reader = new FileReader();
+  reader.onload = e => {
+    pick.innerHTML = `<img src="${e.target.result}" alt="logo">`;
+  };
+  reader.readAsDataURL(file);
+  tg.HapticFeedback.selectionChanged();
+}
+
+// Barber edit screen — avatar
+function pickAvatar() {
+  document.getElementById('avatar-file-input').click();
+}
+
+let editAvatarFile = null;
+
+function handleAvatarPick(input) {
+  const file = input.files[0]; if (!file) return;
+  editAvatarFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('edit-avatar-img');
+    const ph  = document.getElementById('edit-avatar-placeholder');
+    img.src = e.target.result;
+    img.style.display = '';
+    ph.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  tg.HapticFeedback.selectionChanged();
+}
+
+// Salon logo in edit screen
+let editSalonLogoFile = null;
+
+function pickSalonLogo() {
+  document.getElementById('salon-logo-input').click();
+}
+
+function handleSalonLogoPick(input) {
+  const file = input.files[0]; if (!file) return;
+  editSalonLogoFile = file;
+  const pick = document.getElementById('edit-salon-logo-pick');
+  const reader = new FileReader();
+  reader.onload = e => {
+    pick.innerHTML = `<img src="${e.target.result}" alt="logo">`;
+  };
+  reader.readAsDataURL(file);
+  tg.HapticFeedback.selectionChanged();
+}
+
+// ══════════════════════════════════════════════════════
+// Barber Edit Profile
+// ══════════════════════════════════════════════════════
+let editSpec = 'men';
+
+function editPickSpec(val) {
+  editSpec = val;
+  ['men','women','all'].forEach(s =>
+    document.getElementById('edit-spec-' + s).classList.toggle('selected', s === val)
+  );
+  tg.HapticFeedback.selectionChanged();
+}
+
+async function showBarberEdit() {
+  goTo('s-barber-edit');
+  editAvatarFile = null; editSalonLogoFile = null;
+  try {
+    const d = await GET('/api/barber/dashboard/');
+    document.getElementById('edit-first-name').value = d.first_name || '';
+    document.getElementById('edit-last-name').value  = d.last_name  || '';
+    document.getElementById('edit-phone').value      = d.phone      || '';
+    document.getElementById('edit-bio').value        = d.bio        || '';
+    document.getElementById('edit-exp').value        = d.experience_years || '';
+    document.getElementById('edit-shop-name').value  = d.shop_name  || '';
+    document.getElementById('edit-shop-addr').value  = d.shop_address || '';
+    editSpec = d.specialization || 'men';
+    editPickSpec(editSpec);
+
+    // Avatar
+    const img = document.getElementById('edit-avatar-img');
+    const ph  = document.getElementById('edit-avatar-placeholder');
+    if (d.avatar_url) {
+      img.src = d.avatar_url; img.style.display = ''; ph.style.display = 'none';
+    } else {
+      img.style.display = 'none'; ph.style.display = '';
+    }
+    // Salon logo
+    const logoPick = document.getElementById('edit-salon-logo-pick');
+    if (d.shop_logo_url) {
+      logoPick.innerHTML = `<img src="${d.shop_logo_url}" alt="logo">`;
+    } else {
+      logoPick.innerHTML = '<i class="fa-solid fa-image"></i><span>Rasm</span>';
+    }
+  } catch(e) {
+    tg.showAlert('Yuklab bo\'lmadi: ' + e.message);
+    goBack();
+  }
+}
+
+async function saveBarberProfile() {
+  const btn = document.getElementById('edit-save-btn');
+  const err = document.getElementById('edit-profile-err');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
+
+  try {
+    // Avatar yuklash
+    if (editAvatarFile) {
+      const fd = new FormData(); fd.append('avatar', editAvatarFile);
+      const r = await fetch('/api/me/avatar/', { method:'POST', headers: authHeadersRaw(), body: fd });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Avatar yuklanmadi'); }
+    }
+    // Salon logo yuklash
+    if (editSalonLogoFile) {
+      const fd = new FormData(); fd.append('logo', editSalonLogoFile);
+      const r = await fetch('/api/barber/shop/logo/', { method:'POST', headers: authHeadersRaw(), body: fd });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Logo yuklanmadi'); }
+    }
+    // Matn maydonlarini saqlash
+    await POST('/api/barber/profile/update/', {
+      first_name: document.getElementById('edit-first-name').value.trim(),
+      last_name:  document.getElementById('edit-last-name').value.trim(),
+      phone:      document.getElementById('edit-phone').value.trim(),
+      bio:        document.getElementById('edit-bio').value.trim(),
+      experience_years: parseInt(document.getElementById('edit-exp').value) || 0,
+      specialization: editSpec,
+      shop_name:    document.getElementById('edit-shop-name').value.trim(),
+      shop_address: document.getElementById('edit-shop-addr').value.trim(),
+    });
+
+    tg.HapticFeedback.notificationOccurred('success');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Saqlash';
+    goBack();
+    loadBarberDash();
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Saqlash';
+    err.textContent = e.message; err.style.display = 'block';
+    tg.HapticFeedback.notificationOccurred('error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// Support
+// ══════════════════════════════════════════════════════
+async function submitSupport() {
+  const msg = document.getElementById('support-msg').value.trim();
+  const err = document.getElementById('support-err');
+  const ok  = document.getElementById('support-ok');
+  const btn = document.getElementById('support-send-btn');
+  err.style.display = 'none'; ok.style.display = 'none';
+
+  if (!msg) {
+    err.textContent = 'Xabarni kiriting'; err.style.display = 'block';
+    tg.HapticFeedback.notificationOccurred('error'); return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
+
+  try {
+    await POST('/api/support/', { message: msg });
+    tg.HapticFeedback.notificationOccurred('success');
+    ok.style.display = 'flex';
+    document.getElementById('support-msg').value = '';
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Yuborildi';
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yuborish';
+    err.textContent = e.message; err.style.display = 'block';
+    tg.HapticFeedback.notificationOccurred('error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// User Profile (cached)
+// ══════════════════════════════════════════════════════
+let userProfile = null;
+
+async function loadUserProfile() {
+  try {
+    userProfile = await GET('/api/me/');
+    // Nav menu update
+    document.getElementById('nav-barber-item').style.display =
+      userProfile.is_barber ? '' : 'none';
+    document.getElementById('nav-become-barber').style.display =
+      userProfile.is_barber ? 'none' : '';
+  } catch(e) { /* ignore */ }
+}
+
+// ══════════════════════════════════════════════════════
+// Bootstrap
+// ══════════════════════════════════════════════════════
+(async () => {
+  await loadShops();
+  await loadUserProfile();
+  first('s-shops');
+})();
+</script>
+</body>
+</html>

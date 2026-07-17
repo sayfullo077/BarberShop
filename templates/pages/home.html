@@ -1,0 +1,138 @@
+{% extends 'base/base.html' %}
+{% load static humanize %}
+
+{% block title %}BarberShop — Sartarosh salonlarida onlayn bronlash{% endblock %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<div class="slider-area">
+    <div class="single-slider hero-overly slider-height d-flex align-items-center"
+         style="background-image: url('{% static "img/hero/h1_hero.png" %}')">
+        <div class="container">
+            <div class="row">
+                <div class="col-xl-7 col-lg-9 col-md-10">
+                    <div class="hero__caption">
+                        <p data-animation="fadeInLeft" data-delay=".4s">Sartarosh bronlash tizimi</p>
+                        <h1 data-animation="fadeInLeft" data-delay=".6s">
+                            Onlayn vaqt<br>band qiling
+                        </h1>
+                        <div class="hero__btn" data-animation="fadeInLeft" data-delay=".8s">
+                            <a href="{% url 'shops:list' %}" class="btn hero-btn">Salonlar</a>
+                            <a href="{% url 'telegram:webapp' %}" class="btn hero-btn2 ml-4">
+                                <i class="fab fa-telegram"></i> Telegram orqali
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features -->
+<div class="support-company-area pt-100 pb-100 fix">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-xl-12 col-lg-12">
+                <div class="section-tittle text-center mb-70">
+                    <h2>Nima uchun BarberShop?</h2>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-4 col-md-6">
+                <div class="single-services text-center mb-30">
+                    <div class="services-icon mb-20">
+                        <span class="flaticon-scissors"></span>
+                    </div>
+                    <div class="services-cap">
+                        <h5>Onlayn bron</h5>
+                        <p>24/7 istalgan vaqtda, telefon qilmasdan vaqt band qiling.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="single-services text-center mb-30">
+                    <div class="services-icon mb-20">
+                        <span class="flaticon-bell"></span>
+                    </div>
+                    <div class="services-cap">
+                        <h5>Eslatmalar</h5>
+                        <p>Bron oldidan Telegram yoki SMS orqali eslatma olasiz.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="single-services text-center mb-30">
+                    <div class="services-icon mb-20">
+                        <span class="flaticon-telegram"></span>
+                    </div>
+                    <div class="services-cap">
+                        <h5>Telegram WebApp</h5>
+                        <p>Telegramdan chiqmay turib bron qilish imkoniyati.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Shops Section -->
+{% if shops %}
+<div class="categories-area pt-80 pb-100 gray-bg">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="section-tittle text-center mb-55">
+                    <h2>Mashhur Salonlar</h2>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            {% for shop in shops %}
+            <div class="col-xl-4 col-lg-4 col-md-6 mb-30">
+                <div class="single-cat text-center cursor-p">
+                    <div class="cat-icon">
+                        {% if shop.logo %}
+                        <img src="{{ shop.logo.url }}" alt="{{ shop.name }}" class="img-fluid rounded-circle" style="width:80px;height:80px;object-fit:cover;">
+                        {% else %}
+                        <span class="flaticon-scissors"></span>
+                        {% endif %}
+                    </div>
+                    <div class="cat-cap">
+                        <h5><a href="{% url 'shops:detail' shop.slug %}">{{ shop.name }}</a></h5>
+                        <p>{{ shop.address|truncatechars:60 }}</p>
+                        <a href="{% url 'bookings:book' shop.slug %}" class="btn border-btn">Bron qilish</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="row mt-30">
+            <div class="col-12 text-center">
+                <a href="{% url 'shops:list' %}" class="btn hero-btn">Barcha salonlar</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- CTA -->
+<div class="wantToWork-area w-padding">
+    <div class="container">
+        <div class="row d-flex align-items-center justify-content-between">
+            <div class="col-xl-7 col-lg-9 col-md-8">
+                <div class="wantToWork-caption wantToWork-caption2">
+                    <h2>Salon eganmisiz?</h2>
+                    <p>O'z saloningizni platformamizga qo'shing va mijozlarni Telegram orqali bron qilishini osonlashtiring.</p>
+                </div>
+            </div>
+            <div class="col-xl-2 col-lg-3 col-md-4">
+                <a href="{% url 'accounts:login' %}" class="btn btn-ans">Ro'yxatdan o'tish</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

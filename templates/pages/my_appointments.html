@@ -1,0 +1,92 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Mening bronlarim — BarberShop{% endblock %}
+
+{% block content %}
+<div class="bradcam_area bradcam_bg_1">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="bradcam_text text-center">
+                    <h3>Mening bronlarim</h3>
+                    <p><a href="{% url 'shops:home' %}">Bosh sahifa</a> / Bronlarim</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="py-80">
+    <div class="container">
+        {% if appointments %}
+        <div class="row">
+            {% for appt in appointments %}
+            <div class="col-lg-6 mb-30">
+                <div class="white-box p-25">
+                    <div class="d-flex justify-content-between align-items-start mb-15">
+                        <div>
+                            <h5 class="mb-5">{{ appt.shop.name }}</h5>
+                            <p class="text-muted mb-0">{{ appt.service.name }}</p>
+                        </div>
+                        {% if appt.status == 'confirmed' %}
+                            <span class="badge badge-success">Tasdiqlangan</span>
+                        {% elif appt.status == 'pending' %}
+                            <span class="badge badge-warning">Kutilmoqda</span>
+                        {% elif appt.status == 'cancelled' %}
+                            <span class="badge badge-danger">Bekor qilindi</span>
+                        {% elif appt.status == 'completed' %}
+                            <span class="badge badge-info">Bajarildi</span>
+                        {% endif %}
+                    </div>
+                    <div class="row text-center mb-15">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Sana</small>
+                            <strong>{{ appt.date|date:"d.m.Y" }}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Vaqt</small>
+                            <strong>{{ appt.start_time|time:"H:i" }}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Sartarosh</small>
+                            <strong>{{ appt.barber.user.first_name }}</strong>
+                        </div>
+                    </div>
+                    <a href="{% url 'bookings:detail' appt.id %}" class="btn btn-sm hero-btn">Batafsil</a>
+                    {% if appt.status in 'pending confirmed' %}
+                    <button class="btn btn-sm btn-outline-danger ml-2 cancel-btn"
+                            data-url="{% url 'bookings:cancel' appt.id %}">
+                        Bekor qilish
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-60">
+            <i class="fas fa-calendar-times fa-5x text-muted mb-20"></i>
+            <h4>Hali bron qilmadingiz</h4>
+            <p class="text-muted mb-30">Salonlar ro'yxatidan o'zingizga mos sartarosh toping.</p>
+            <a href="{% url 'shops:list' %}" class="btn hero-btn">Salonlarni ko'rish</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(".cancel-btn").click(function() {
+    if (!confirm("Bronni bekor qilmoqchimisiz?")) return;
+    const btn = $(this);
+    $.ajax({
+        url: btn.data("url"), method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+        success: () => location.reload(),
+        error: (xhr) => alert(xhr.responseJSON?.error || "Xatolik.")
+    });
+});
+</script>
+{% endblock %}

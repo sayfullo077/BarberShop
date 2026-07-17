@@ -1,0 +1,196 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ shop.name }} — BarberShop{% endblock %}
+
+{% block content %}
+<div class="bradcam_area bradcam_bg_1">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="bradcam_text text-center">
+                    <h3>{{ shop.name }}</h3>
+                    <p><a href="{% url 'shops:home' %}">Bosh sahifa</a> / <a href="{% url 'shops:list' %}">Salonlar</a> / {{ shop.name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Shop Info -->
+<section class="about-area2 pt-80 pb-80">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-30">
+                {% if shop.cover %}
+                <img src="{{ shop.cover.url }}" class="img-fluid rounded" alt="{{ shop.name }}">
+                {% else %}
+                <img src="{% static 'img/gallery/about.png' %}" class="img-fluid rounded" alt="">
+                {% endif %}
+            </div>
+            <div class="col-lg-6">
+                <div class="about-caption pl-lg-4">
+                    {% if shop.logo %}
+                    <img src="{{ shop.logo.url }}" alt="{{ shop.name }}" class="mb-20" style="height:60px;">
+                    {% endif %}
+                    <h3>{{ shop.name }}</h3>
+                    <p><i class="fas fa-map-marker-alt mr-2"></i>{{ shop.address }}</p>
+                    <p><i class="fas fa-phone mr-2"></i>{{ shop.phone }}</p>
+                    {% if shop.description %}
+                    <p>{{ shop.description }}</p>
+                    {% endif %}
+                    <div class="mt-20">
+                        {% if shop.telegram_url %}
+                        <a href="{{ shop.telegram_url }}" class="btn btn-outline-primary mr-2" target="_blank">
+                            <i class="fab fa-telegram"></i> Telegram
+                        </a>
+                        {% endif %}
+                        {% if shop.instagram_url %}
+                        <a href="{{ shop.instagram_url }}" class="btn btn-outline-danger mr-2" target="_blank">
+                            <i class="fab fa-instagram"></i> Instagram
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'bookings:book' shop.slug %}" class="btn hero-btn">Bron qilish</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Working Hours -->
+{% if shop.working_hours.all %}
+<section class="gray-bg py-50">
+    <div class="container">
+        <h4 class="text-center mb-30">Ish vaqtlari</h4>
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <table class="table table-bordered text-center">
+                    {% for wh in shop.working_hours.all %}
+                    <tr {% if wh.is_day_off %}class="text-muted"{% endif %}>
+                        <td><strong>{{ wh.get_day_of_week_display }}</strong></td>
+                        <td>
+                            {% if wh.is_day_off %}
+                                Dam olish kuni
+                            {% else %}
+                                {{ wh.open_time|time:"H:i" }} – {{ wh.close_time|time:"H:i" }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Barbers -->
+{% if barbers %}
+<section class="team-area pt-80 pb-80">
+    <div class="container">
+        <div class="section-tittle text-center mb-55">
+            <h2>Sartaroshlar</h2>
+        </div>
+        <div class="row">
+            {% for barber in barbers %}
+            <div class="col-xl-3 col-lg-4 col-md-6 mb-30">
+                <div class="single-team text-center">
+                    <div class="team-img">
+                        {% if barber.user.avatar %}
+                        <img src="{{ barber.user.avatar.url }}" alt="{{ barber.user.get_full_name }}"
+                             style="width:100%;height:250px;object-fit:cover;">
+                        {% else %}
+                        <img src="{% static 'img/gallery/team1.png' %}" alt="">
+                        {% endif %}
+                    </div>
+                    <div class="team-caption">
+                        <h3><a href="{% url 'shops:barber_detail' barber.id %}">
+                            {{ barber.user.get_full_name|default:barber.user.username }}
+                        </a></h3>
+                        <p>{{ barber.experience_years }} yil tajriba</p>
+                        <a href="{% url 'bookings:book' shop.slug %}?barber={{ barber.id }}"
+                           class="btn btn-sm hero-btn mt-10">Bron qilish</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Services -->
+{% if services %}
+<section class="gray-bg py-80">
+    <div class="container">
+        <div class="section-tittle text-center mb-55">
+            <h2>Xizmatlar</h2>
+        </div>
+        <div class="row">
+            {% for service in services %}
+            <div class="col-lg-4 col-md-6 mb-30">
+                <div class="single-services">
+                    <div class="services-cap p-25">
+                        <h5>{{ service.name }}</h5>
+                        <p>{{ service.description|truncatechars:80 }}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-10">
+                            <span class="text-muted"><i class="fas fa-clock mr-1"></i>{{ service.duration_display }}</span>
+                            <strong>{{ service.price|floatformat:0 }} so'm</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-20">
+            <a href="{% url 'bookings:book' shop.slug %}" class="btn hero-btn">Bron qilish</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Portfolio -->
+{% if portfolio %}
+<section class="gallery-area pt-80 pb-80">
+    <div class="container">
+        <div class="section-tittle text-center mb-55">
+            <h2>Portfolio</h2>
+        </div>
+        <div class="row" id="portfolio-grid">
+            {% for post in portfolio %}
+            <div class="col-lg-4 col-md-6 mb-20">
+                <div class="gallery-item" id="post-{{ post.id }}">
+                    <div class="gallery-img" style="height:250px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-spinner fa-spin text-muted" id="loader-{{ post.id }}"></i>
+                    </div>
+                    {% if post.caption %}
+                    <p class="mt-10 text-muted small">{{ post.caption|truncatechars:60 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if portfolio %}
+<script>
+// Load portfolio images via API to get fresh Telegram file URLs
+$.get("{% url 'portfolio:api' shop.slug %}", function(data) {
+    data.posts.forEach(function(post) {
+        const $item = $("#post-" + post.id + " .gallery-img");
+        if (post.url) {
+            $item.html(`<img src="${post.url}" style="width:100%;height:250px;object-fit:cover;" alt="">`);
+        } else {
+            $item.html('<i class="fas fa-image fa-3x text-muted"></i>');
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

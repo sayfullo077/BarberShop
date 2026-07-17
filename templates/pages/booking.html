@@ -1,0 +1,278 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Bron qilish — {{ shop.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/gijgo.css' %}">
+<style>
+.booking-step { display: none; }
+.booking-step.active { display: block; }
+.slot-btn { margin: 4px; min-width: 80px; }
+.slot-btn.selected { background: #c09a5b; color: #fff; border-color: #c09a5b; }
+.barber-card { cursor: pointer; border: 2px solid transparent; transition: .2s; }
+.barber-card.selected { border-color: #c09a5b; }
+.service-card { cursor: pointer; border: 2px solid transparent; transition: .2s; }
+.service-card.selected { border-color: #c09a5b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Bradcam -->
+<div class="bradcam_area bradcam_bg_1">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-12">
+                <div class="bradcam_text text-center">
+                    <h3>{{ shop.name }} — Bron qilish</h3>
+                    <p><a href="{% url 'shops:home' %}">Bosh sahifa</a> / Bron</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-80">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Step indicators -->
+            <div class="d-flex justify-content-between mb-40 step-indicators">
+                <div class="step-item text-center" id="ind-1">
+                    <span class="step-num active-step">1</span>
+                    <p>Sartarosh</p>
+                </div>
+                <div class="step-item text-center" id="ind-2">
+                    <span class="step-num">2</span>
+                    <p>Xizmat</p>
+                </div>
+                <div class="step-item text-center" id="ind-3">
+                    <span class="step-num">3</span>
+                    <p>Sana & Vaqt</p>
+                </div>
+                <div class="step-item text-center" id="ind-4">
+                    <span class="step-num">4</span>
+                    <p>Tasdiqlash</p>
+                </div>
+            </div>
+
+            <div class="white-box p-30">
+
+                <!-- Step 1: Barber -->
+                <div class="booking-step active" id="step-1">
+                    <h4 class="mb-30">Sartarosh tanlang</h4>
+                    <div class="row" id="barber-list">
+                        {% for barber in barbers %}
+                        <div class="col-md-6 mb-20">
+                            <div class="barber-card p-20 text-center"
+                                 data-id="{{ barber.id }}"
+                                 data-name="{{ barber.user.get_full_name|default:barber.user.username }}"
+                                 data-slot="{{ barber.slot_duration }}">
+                                {% if barber.user.avatar %}
+                                <img src="{{ barber.user.avatar.url }}" class="rounded-circle mb-10" style="width:80px;height:80px;object-fit:cover;">
+                                {% else %}
+                                <div class="barber-avatar-placeholder mb-10"><i class="fas fa-user-circle fa-4x"></i></div>
+                                {% endif %}
+                                <h5>{{ barber.user.get_full_name|default:barber.user.username }}</h5>
+                                <p class="text-muted">{{ barber.experience_years }} yil tajriba</p>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-center">Hozircha sartarosh yo'q.</p>
+                        {% endfor %}
+                    </div>
+                    <div class="text-right mt-20">
+                        <button class="btn hero-btn" id="next-1" disabled>Keyingisi →</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Service -->
+                <div class="booking-step" id="step-2">
+                    <h4 class="mb-30">Xizmat tanlang</h4>
+                    <div class="row" id="service-list">
+                        {% for service in services %}
+                        <div class="col-md-6 mb-20">
+                            <div class="service-card p-20"
+                                 data-id="{{ service.id }}"
+                                 data-name="{{ service.name }}"
+                                 data-duration="{{ service.duration }}"
+                                 data-price="{{ service.price }}">
+                                <h5>{{ service.name }}</h5>
+                                <p class="text-muted mb-5">{{ service.duration_display }}</p>
+                                <strong>{{ service.price|floatformat:0 }} so'm</strong>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-center">Xizmatlar topilmadi.</p>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-between mt-20">
+                        <button class="btn btn-secondary" id="back-2">← Orqaga</button>
+                        <button class="btn hero-btn" id="next-2" disabled>Keyingisi →</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Date & Time -->
+                <div class="booking-step" id="step-3">
+                    <h4 class="mb-30">Sana va vaqt tanlang</h4>
+                    <div class="row">
+                        <div class="col-md-6 mb-20">
+                            <label>Sana</label>
+                            <input type="text" id="booking-date" class="form-control" placeholder="Sana tanlang" readonly>
+                        </div>
+                    </div>
+                    <div id="slots-container" class="mt-20" style="display:none;">
+                        <label>Bo'sh vaqtlar</label>
+                        <div id="slots-list"></div>
+                    </div>
+                    <div id="no-slots" class="alert alert-warning mt-20" style="display:none;">
+                        Bu kunda bo'sh vaqt yo'q. Boshqa kun tanlang.
+                    </div>
+                    <div id="slots-loading" class="mt-20" style="display:none;">
+                        <i class="fas fa-spinner fa-spin"></i> Vaqtlar yuklanmoqda...
+                    </div>
+                    <div class="d-flex justify-content-between mt-20">
+                        <button class="btn btn-secondary" id="back-3">← Orqaga</button>
+                        <button class="btn hero-btn" id="next-3" disabled>Keyingisi →</button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Confirm -->
+                <div class="booking-step" id="step-4">
+                    <h4 class="mb-30">Bronni tasdiqlang</h4>
+                    <div class="booking-summary p-20 mb-20">
+                        <table class="table">
+                            <tr><td><strong>Salon:</strong></td><td>{{ shop.name }}</td></tr>
+                            <tr><td><strong>Sartarosh:</strong></td><td id="sum-barber">—</td></tr>
+                            <tr><td><strong>Xizmat:</strong></td><td id="sum-service">—</td></tr>
+                            <tr><td><strong>Sana:</strong></td><td id="sum-date">—</td></tr>
+                            <tr><td><strong>Vaqt:</strong></td><td id="sum-time">—</td></tr>
+                            <tr><td><strong>Narx:</strong></td><td id="sum-price">—</td></tr>
+                        </table>
+                    </div>
+                    <div id="booking-error" class="alert alert-danger" style="display:none;"></div>
+                    <div class="d-flex justify-content-between mt-10">
+                        <button class="btn btn-secondary" id="back-4">← Orqaga</button>
+                        <button class="btn hero-btn" id="confirm-btn">✓ Tasdiqlash</button>
+                    </div>
+                </div>
+
+            </div><!-- /white-box -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/gijgo.min.js' %}"></script>
+<script>
+const SLOTS_URL = "{% url 'bookings:slots_api' %}";
+const BOOKING_URL = "{% url 'bookings:create' %}";
+const CSRF = "{{ csrf_token }}";
+
+let state = { barberId: null, barberName: null, serviceId: null, serviceName: null,
+              servicePrice: null, date: null, time: null };
+
+// Datepicker
+$("#booking-date").datepicker({
+    uiLibrary: "bootstrap4",
+    minDate: new Date(),
+    format: "yyyy-mm-dd",
+    change: onDateChange
+});
+
+function onDateChange() {
+    state.date = $("#booking-date").val();
+    state.time = null;
+    loadSlots();
+}
+
+function loadSlots() {
+    if (!state.barberId || !state.date) return;
+    $("#slots-container, #no-slots").hide();
+    $("#slots-loading").show();
+    $("#next-3").prop("disabled", true);
+    $.get(SLOTS_URL, { barber_id: state.barberId, date: state.date }, function(data) {
+        $("#slots-loading").hide();
+        if (!data.slots.length) { $("#no-slots").show(); return; }
+        let html = "";
+        data.slots.forEach(s => {
+            html += `<button class="btn btn-outline-secondary slot-btn" data-time="${s}">${s}</button>`;
+        });
+        $("#slots-list").html(html);
+        $("#slots-container").show();
+    }).fail(function() {
+        $("#slots-loading").hide();
+        $("#no-slots").text("Xatolik yuz berdi.").show();
+    });
+}
+
+$(document).on("click", ".slot-btn", function() {
+    $(".slot-btn").removeClass("selected");
+    $(this).addClass("selected");
+    state.time = $(this).data("time");
+    $("#next-3").prop("disabled", false);
+});
+
+// Barber select
+$(document).on("click", ".barber-card", function() {
+    $(".barber-card").removeClass("selected");
+    $(this).addClass("selected");
+    state.barberId = $(this).data("id");
+    state.barberName = $(this).data("name");
+    $("#next-1").prop("disabled", false);
+});
+
+// Service select
+$(document).on("click", ".service-card", function() {
+    $(".service-card").removeClass("selected");
+    $(this).addClass("selected");
+    state.serviceId = $(this).data("id");
+    state.serviceName = $(this).data("name");
+    state.servicePrice = $(this).data("price");
+    $("#next-2").prop("disabled", false);
+});
+
+function goStep(from, to) {
+    $(`#step-${from}`).removeClass("active");
+    $(`#step-${to}`).addClass("active");
+    $(`#ind-${from} .step-num`).removeClass("active-step");
+    $(`#ind-${to} .step-num`).addClass("active-step");
+}
+
+$("#next-1").click(() => goStep(1, 2));
+$("#back-2").click(() => goStep(2, 1));
+$("#next-2").click(() => goStep(2, 3));
+$("#back-3").click(() => goStep(3, 2));
+$("#next-3").click(() => {
+    $("#sum-barber").text(state.barberName);
+    $("#sum-service").text(state.serviceName);
+    $("#sum-date").text(state.date);
+    $("#sum-time").text(state.time);
+    $("#sum-price").text(parseInt(state.servicePrice).toLocaleString() + " so'm");
+    goStep(3, 4);
+});
+$("#back-4").click(() => goStep(4, 3));
+
+$("#confirm-btn").click(function() {
+    $(this).prop("disabled", true).text("Yuborilmoqda...");
+    $.ajax({
+        url: BOOKING_URL, method: "POST",
+        contentType: "application/json",
+        headers: { "X-CSRFToken": CSRF },
+        data: JSON.stringify({
+            barber_id: state.barberId, service_id: state.serviceId,
+            date: state.date, time: state.time
+        }),
+        success: function(res) {
+            if (res.ok) window.location = res.redirect;
+        },
+        error: function(xhr) {
+            const err = xhr.responseJSON?.error || "Xatolik yuz berdi.";
+            $("#booking-error").text(err).show();
+            $("#confirm-btn").prop("disabled", false).text("✓ Tasdiqlash");
+        }
+    });
+});
+</script>
+{% endblock %}

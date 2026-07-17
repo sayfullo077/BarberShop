@@ -1,0 +1,77 @@
+{% load static %}
+<div class="footer-area footer-bg">
+    <div class="container">
+        <div class="footer-top footer-padding">
+            <div class="row d-flex justify-content-between">
+                <div class="col-xl-3 col-lg-3 col-md-4 col-sm-8">
+                    <div class="single-footer-caption mb-50">
+                        <div class="footer-logo mb-25">
+                            <a href="{% url 'shops:home' %}">
+                                <img src="{% static 'img/logo/logo2_footer.png' %}" alt="BarberShop">
+                            </a>
+                        </div>
+                        <div class="footer-tittle">
+                            <div class="footer-pera">
+                                <p>O'zbekistondagi sartarosh salonlarida onlayn vaqt band qiling. Tez, qulay, ishonchli.</p>
+                            </div>
+                        </div>
+                        <div class="footer-social mt-20">
+                            <a href="#"><i class="fab fa-telegram"></i></a>
+                            <a href="#"><i class="fab fa-instagram"></i></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-2 col-md-3 col-sm-5">
+                    <div class="single-footer-caption mb-50">
+                        <div class="footer-tittle">
+                            <h4>Sahifalar</h4>
+                            <ul>
+                                <li><a href="{% url 'shops:home' %}">Bosh sahifa</a></li>
+                                <li><a href="{% url 'shops:list' %}">Salonlar</a></li>
+                                {% if user.is_authenticated %}
+                                <li><a href="{% url 'bookings:my_list' %}">Bronlarim</a></li>
+                                {% else %}
+                                <li><a href="{% url 'accounts:login' %}">Kirish</a></li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-2 col-md-3 col-sm-5">
+                    <div class="single-footer-caption mb-50">
+                        <div class="footer-tittle">
+                            <h4>Xizmatlar</h4>
+                            <ul>
+                                <li><a href="#">Soch kesish</a></li>
+                                <li><a href="#">Soqol olish</a></li>
+                                <li><a href="#">Soch bo'yash</a></li>
+                                <li><a href="#">Bola soch kesish</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-lg-3 col-md-5 col-sm-7">
+                    <div class="single-footer-caption mb-50">
+                        <div class="footer-tittle mb-25">
+                            <h4>Telegram Bot</h4>
+                        </div>
+                        <div class="footer-form">
+                            <a href="{% url 'telegram:webapp' %}" class="btn header-btn">
+                                <i class="fab fa-telegram"></i> Bot orqali bron
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="row d-flex justify-content-between align-items-center">
+                <div class="col-xl-9 col-lg-9">
+                    <div class="footer-copy-right">
+                        <p>© {% now "Y" %} BarberShop. Barcha huquqlar himoyalangan.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
