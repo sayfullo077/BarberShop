@@ -126,6 +126,22 @@ def _err(msg: str, status: int = 400) -> JsonResponse:
 # Shops
 # ---------------------------------------------------------------------------
 
+def _shop_card(request, s):
+    """Bosh sahifa/qidiruv kartasi uchun salon ma'lumoti."""
+    return {
+        "id": str(s.id),
+        "name": s.name,
+        "slug": s.slug,
+        "city": s.city,
+        "address": s.address,
+        "phone": s.phone,
+        "logo_url": request.build_absolute_uri(s.logo.url) if s.logo else None,
+        "barbers_count": s.barbers.filter(is_accepting_bookings=True).count(),
+        "telegram_url": s.telegram_url,
+        "instagram_url": s.instagram_url,
+    }
+
+
 @webapp_api
 @require_GET
 def shops_list(request):
@@ -134,20 +150,38 @@ def shops_list(request):
         .select_related("owner")
         .prefetch_related("barbers")
     )
-    data = []
-    for s in shops:
-        data.append({
-            "id": str(s.id),
-            "name": s.name,
-            "slug": s.slug,
-            "address": s.address,
-            "phone": s.phone,
-            "logo_url": request.build_absolute_uri(s.logo.url) if s.logo else None,
-            "barbers_count": s.barbers.filter(is_accepting_bookings=True).count(),
-            "telegram_url": s.telegram_url,
-            "instagram_url": s.instagram_url,
-        })
-    return JsonResponse({"shops": data})
+    return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
+
+
+@webapp_api
+@require_GET
+def search(request):
+    """Salon yoki barberni qidirish: nomi, shahar, manzil, telefon,
+    usta ismi/telefoni yoki xizmat nomi bo'yicha."""
+    from django.db.models import Q
+
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({"shops": []})
+
+    digits = "".join(ch for ch in q if ch.isdigit())
+    filt = (
+        Q(name__icontains=q)
+        | Q(city__icontains=q)
+        | Q(address__icontains=q)
+        | Q(barbers__user__first_name__icontains=q)
+        | Q(barbers__user__last_name__icontains=q)
+        | Q(services__name__icontains=q)
+    )
+    # Telefon bo'yicha (raqamlar bo'lsa raqam substring bilan)
+    phone_q = digits if len(digits) >= 3 else q
+    filt |= Q(phone__icontains=phone_q) | Q(barbers__user__phone__icontains=phone_q)
+
+    shops = (
+        Shop.objects.filter(is_active=True).filter(filt)
+        .select_related("owner").prefetch_related("barbers").distinct()[:30]
+    )
+    return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
 
 
 @webapp_api

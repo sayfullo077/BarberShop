@@ -1026,6 +1026,13 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
       <span></span><span></span><span></span>
     </button>
   </div>
+  <div style="padding:12px 16px 2px;">
+    <div style="position:relative;">
+      <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;"></i>
+      <input class="form-input" id="shop-search" placeholder="Salon, usta yoki telefon..." style="padding-left:42px;padding-right:38px;" oninput="onSearchInput()" autocomplete="off">
+      <i class="fa-solid fa-xmark" id="search-clear" onclick="clearSearch()" style="display:none;position:absolute;right:15px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;cursor:pointer;"></i>
+    </div>
+  </div>
   <div id="shops-content">
     <div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">YUKLANMOQDA</div></div>
   </div>
@@ -1596,6 +1603,26 @@ async function POST(path, body) {
 // ══════════════════════════════════════════════════════
 // Shops List
 // ══════════════════════════════════════════════════════
+function shopCardHtml(s) {
+  const loc = (s.city ? esc(s.city) + ', ' : '') + esc(s.address || '');
+  return `
+      <div class="shop-card" onclick="openShop('${s.slug}')">
+        <div class="shop-card-inner">
+          <div class="shop-avatar">
+            ${s.logo_url ? `<img src="${s.logo_url}" alt="">` : '✂️'}
+          </div>
+          <div class="shop-info">
+            <div class="shop-name">${esc(s.name)}</div>
+            <div class="shop-addr"><i class="fa-solid fa-location-dot" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${loc}</div>
+          </div>
+        </div>
+        <div class="shop-card-footer">
+          <span><i class="fa-solid fa-scissors" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${s.barbers_count} sartarosh</span>
+          <i class="fa-solid fa-chevron-right"></i>
+        </div>
+      </div>`;
+}
+
 async function loadShops() {
   const el = document.getElementById('shops-content');
   try {
@@ -1605,26 +1632,44 @@ async function loadShops() {
         <div class="empty-title">Salonlar yo'q</div></div>`;
       return;
     }
-    let html = '<div class="sec-label">Salonlar</div>';
-    shops.forEach(s => {
-      html += `
-      <div class="shop-card" onclick="openShop('${s.slug}')">
-        <div class="shop-card-inner">
-          <div class="shop-avatar">
-            ${s.logo_url ? `<img src="${s.logo_url}" alt="">` : '✂️'}
-          </div>
-          <div class="shop-info">
-            <div class="shop-name">${esc(s.name)}</div>
-            <div class="shop-addr"><i class="fa-solid fa-location-dot" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${esc(s.address)}</div>
-          </div>
-        </div>
-        <div class="shop-card-footer">
-          <span><i class="fa-solid fa-scissors" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${s.barbers_count} sartarosh</span>
-          <i class="fa-solid fa-chevron-right"></i>
-        </div>
-      </div>`;
-    });
-    el.innerHTML = html;
+    el.innerHTML = '<div class="sec-label">Salonlar</div>' + shops.map(shopCardHtml).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
+      <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+// ── Qidiruv (salon/usta/telefon) ──────────────────────────
+let searchTimer = null;
+function onSearchInput() {
+  const q = document.getElementById('shop-search').value.trim();
+  document.getElementById('search-clear').style.display = q ? 'block' : 'none';
+  clearTimeout(searchTimer);
+  if (!q) { loadShops(); return; }
+  if (q.length < 2) return;
+  searchTimer = setTimeout(() => runSearch(q), 300);
+}
+
+function clearSearch() {
+  const inp = document.getElementById('shop-search');
+  inp.value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  loadShops();
+}
+
+async function runSearch(q) {
+  const el = document.getElementById('shops-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const { shops } = await GET('/api/search/?q=' + encodeURIComponent(q));
+    if (!shops.length) {
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">🔍</div>
+        <div class="empty-title">Topilmadi</div>
+        <div class="empty-sub">«${esc(q)}» bo'yicha natija yo'q</div></div>`;
+      return;
+    }
+    el.innerHTML = `<div class="sec-label">Natijalar <span style="color:var(--muted);font-weight:400;">(${shops.length})</span></div>`
+      + shops.map(shopCardHtml).join('');
   } catch(e) {
     el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
       <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
