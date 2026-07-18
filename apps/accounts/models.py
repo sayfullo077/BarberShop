@@ -12,6 +12,8 @@ class User(AbstractUser):
     telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     telegram_username = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    phone_verified = models.BooleanField(default=False, verbose_name="Telefon tasdiqlangan")
+    is_blocked = models.BooleanField(default=False, verbose_name="Bloklangan")
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     language = models.CharField(max_length=5, default="uz", choices=[("uz", "O'zbek"), ("ru", "Русский")])
     is_telegram_verified = models.BooleanField(default=False)

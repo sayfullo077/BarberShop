@@ -2780,6 +2780,36 @@ async function submitBarberReg() {
 // ══════════════════════════════════════════════════════
 // Barber Dashboard
 // ══════════════════════════════════════════════════════
+// ── Telefon tasdiqlash (Telegram kontakt) ─────────────────
+function verifyPhone() {
+  if (!tg.requestContact) {
+    uiAlert("Telegram ilovangizni yangilang — kontakt ulashish qo'llanmaydi.");
+    return;
+  }
+  tg.requestContact((ok, ev) => {
+    if (!ok) return;  // foydalanuvchi bekor qildi
+    let phone = '';
+    try {
+      const c = ev && ev.responseUnsafe && ev.responseUnsafe.contact;
+      phone = (c && c.phone_number) || '';
+    } catch (e) {}
+    if (phone) {
+      submitVerifyPhone(phone);
+    } else {
+      // Kontakt botga yuborildi — bot tasdiqlaydi; biroz kutib yangilaymiz
+      setTimeout(() => loadBarberDash(), 1800);
+    }
+  });
+}
+async function submitVerifyPhone(phone) {
+  try {
+    await POST('/api/verify-phone/', { phone });
+    try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+    if (userProfile) { userProfile.phone = phone; userProfile.phone_verified = true; }
+    uiAlert('Raqamingiz tasdiqlandi ✓', () => loadBarberDash());
+  } catch (e) { uiAlert('Xatolik: ' + e.message); }
+}
+
 async function loadBarberDash() {
   goTo('s-barber-dash');
   tg.MainButton.hide();
@@ -2794,6 +2824,18 @@ async function loadBarberDash() {
       ? `<img src="${d.avatar_url}" class="avatar-img" alt="avatar">`
       : `<div class="avatar-placeholder"><i class="fa-solid fa-user"></i></div>`;
     el.innerHTML = `
+      ${d.status && !d.status.is_public ? `
+      <div style="margin:12px 16px 4px;padding:14px 16px;border-radius:16px;background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.3);">
+        <div style="font-weight:600;font-size:14px;color:var(--warning);margin-bottom:4px;"><i class="fa-solid fa-triangle-exclamation"></i> Profilingiz hali ko'rinmaydi</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">Mijozlar sizni topishi uchun quyidagilarni bajaring:</div>
+        ${d.status.missing.includes('phone')
+          ? `<button class="btn-primary" style="margin:0 0 8px;padding:11px;font-size:13.5px;" onclick="verifyPhone()"><i class="fa-solid fa-shield-halved"></i> Telefon raqamni tasdiqlash</button>`
+          : `<div style="font-size:12.5px;color:var(--success);margin-bottom:6px;"><i class="fa-solid fa-circle-check"></i> Telefon tasdiqlangan</div>`}
+        ${d.status.missing.includes('service')
+          ? `<div style="font-size:12.5px;color:var(--muted);"><i class="fa-solid fa-scissors" style="margin-right:4px;"></i> Kamida 1 ta xizmat qo'shing (pastda)</div>`
+          : ''}
+      </div>` : ''}
+      ${d.status && d.status.is_public ? `<div style="margin:12px 16px 0;font-size:12.5px;color:var(--success);"><i class="fa-solid fa-circle-check"></i> Profilingiz faol va ko'rinadi</div>` : ''}
       <div class="barber-profile-card">
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
           <div class="avatar-wrap" onclick="showBarberEdit()" style="cursor:pointer;">

@@ -126,6 +126,27 @@ async def handle_channel_post(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         _save_post(shop, post.to_dict())
 
 
+async def handle_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi kontakt (telefon) ulashganда — raqamни tasdiqlaymiz.
+    (WebApp `requestContact` kontaktni botga yuboradi — ishonchli tasdiq yo'li.)"""
+    contact = update.message.contact if update.message else None
+    if not contact:
+        return
+    # Faqat o'zining raqamini ulashganда (boshqasinikini emas)
+    if contact.user_id and contact.user_id != update.effective_user.id:
+        return
+
+    from apps.accounts.models import User
+    u = User.objects.filter(telegram_id=update.effective_user.id).first()
+    if u:
+        u.phone = (contact.phone_number or "")[:20]
+        u.phone_verified = True
+        u.save(update_fields=["phone", "phone_verified"])
+        await update.message.reply_text(
+            "✅ Raqamingiz tasdiqlandi! Ilovaga qaytishingiz mumkin."
+        )
+
+
 def build_application() -> Application:
     application = (
         Application.builder()
@@ -137,6 +158,7 @@ def build_application() -> Application:
         MessageHandler(filters.Regex(r"^/bekor_"), cancel_booking_command)
     )
     application.add_handler(CallbackQueryHandler(callback_handler))
+    application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     application.add_handler(
         MessageHandler(filters.ChatType.CHANNEL, handle_channel_post)
     )

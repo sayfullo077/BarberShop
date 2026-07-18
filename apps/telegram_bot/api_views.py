@@ -155,15 +155,25 @@ def _haversine_km(lat1, lng1, lat2, lng2):
     return r * 2 * math.asin(math.sqrt(a))
 
 
-@webapp_api
-@require_GET
-def shops_list(request):
-    shops = (
-        Shop.objects.filter(is_active=True)
+def _public_shops_qs():
+    """Omma oldida ko'rinadigan salonlar: faol + egasi telefonini tasdiqlagan +
+    bloklanmagan + kamida 1 ta faol xizmatga ega. Chala/soxta profillar yashirin."""
+    from django.db.models import Count, Q
+    return (
+        Shop.objects.filter(
+            is_active=True, owner__phone_verified=True, owner__is_blocked=False,
+        )
+        .annotate(_nsvc=Count("services", filter=Q(services__is_active=True)))
+        .filter(_nsvc__gt=0)
         .select_related("owner")
         .prefetch_related("barbers")
     )
-    return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
+
+
+@webapp_api
+@require_GET
+def shops_list(request):
+    return JsonResponse({"shops": [_shop_card(request, s) for s in _public_shops_qs()]})
 
 
 @webapp_api
@@ -190,10 +200,7 @@ def search(request):
     phone_q = digits if len(digits) >= 3 else q
     filt |= Q(phone__icontains=phone_q) | Q(barbers__user__phone__icontains=phone_q)
 
-    shops = (
-        Shop.objects.filter(is_active=True).filter(filt)
-        .select_related("owner").prefetch_related("barbers").distinct()[:30]
-    )
+    shops = _public_shops_qs().filter(filt).distinct()[:30]
     return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
 
 
@@ -207,10 +214,7 @@ def nearby(request):
     except (KeyError, ValueError, TypeError):
         return _err("lat/lng kerak")
 
-    shops = (
-        Shop.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
-        .select_related("owner").prefetch_related("barbers")
-    )
+    shops = _public_shops_qs().filter(latitude__isnull=False, longitude__isnull=False)
     items = []
     for s in shops:
         dist = _haversine_km(lat, lng, float(s.latitude), float(s.longitude))
@@ -429,6 +433,25 @@ def booking_cancel(request, appointment_id):
 # User Profile
 # ---------------------------------------------------------------------------
 
+def _barber_public_status(user):
+    """Barber profili omma oldida ko'rinishi uchun nima yetishmaydi."""
+    has_service = (
+        hasattr(user, "barber_profile")
+        and user.barber_profile.shop.services.filter(is_active=True).exists()
+    )
+    missing = []
+    if not user.phone_verified:
+        missing.append("phone")
+    if not has_service:
+        missing.append("service")
+    return {
+        "phone_verified": user.phone_verified,
+        "has_service": has_service,
+        "is_public": not missing,
+        "missing": missing,
+    }
+
+
 @webapp_api
 @require_GET
 def me(request):
@@ -446,9 +469,11 @@ def me(request):
         "name": u.get_full_name() or u.username,
         "role": u.role,
         "phone": u.phone,
+        "phone_verified": u.phone_verified,
         "is_barber": u.is_barber,
         "is_shop_owner": is_shop_owner,
         "owned_shop": owned_shop,
+        "barber_status": _barber_public_status(u) if has_barber else None,
         "barber_profile": {
             "shop_slug": u.barber_profile.shop.slug,
             "shop_name": u.barber_profile.shop.name,
@@ -458,6 +483,24 @@ def me(request):
             "is_accepting_bookings": u.barber_profile.is_accepting_bookings,
         } if has_barber else None,
     })
+
+
+@csrf_exempt
+@webapp_api
+def verify_phone(request):
+    """Telegram-tasdiqlangan raqamни qabul qilib, foydalanuvchini tasdiqlaydi.
+    (Frontend `tg.requestContact()` orqali raqamni oladi.)"""
+    if request.method != "POST":
+        return _err("POST kerak", 405)
+    body = json.loads(request.body or b"{}")
+    phone = (body.get("phone") or "").strip()
+    if sum(c.isdigit() for c in phone) < 7:
+        return _err("Telefon raqami noto'g'ri")
+    u = request.tg_user
+    u.phone = phone[:20]
+    u.phone_verified = True
+    u.save(update_fields=["phone", "phone_verified"])
+    return JsonResponse({"ok": True, "phone": u.phone, "phone_verified": True})
 
 
 # ---------------------------------------------------------------------------
@@ -750,10 +793,12 @@ def barber_dashboard(request):
         "shop_logo_url": request.build_absolute_uri(bp.shop.logo.url) if bp.shop.logo else None,
         "is_owner": is_owner,
         "pending_requests": pending_requests,
+        "status": _barber_public_status(u),
         "name": u.get_full_name() or u.username,
         "first_name": u.first_name,
         "last_name": u.last_name,
         "phone": u.phone,
+        "phone_verified": u.phone_verified,
         "bio": bp.bio,
         "specialization": bp.specialization,
         "experience_years": bp.experience_years,
