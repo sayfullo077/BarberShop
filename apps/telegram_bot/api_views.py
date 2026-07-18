@@ -127,7 +127,7 @@ def _err(msg: str, status: int = 400) -> JsonResponse:
 # ---------------------------------------------------------------------------
 
 def _shop_card(request, s):
-    """Bosh sahifa/qidiruv kartasi uchun salon ma'lumoti."""
+    """Bosh sahifa/qidiruv/xarita kartasi uchun salon ma'lumoti."""
     return {
         "id": str(s.id),
         "name": s.name,
@@ -135,11 +135,24 @@ def _shop_card(request, s):
         "city": s.city,
         "address": s.address,
         "phone": s.phone,
+        "latitude": float(s.latitude) if s.latitude is not None else None,
+        "longitude": float(s.longitude) if s.longitude is not None else None,
         "logo_url": request.build_absolute_uri(s.logo.url) if s.logo else None,
         "barbers_count": s.barbers.filter(is_accepting_bookings=True).count(),
         "telegram_url": s.telegram_url,
         "instagram_url": s.instagram_url,
     }
+
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    """Ikki nuqta orasidagi masofa (km)."""
+    import math
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return r * 2 * math.asin(math.sqrt(a))
 
 
 @webapp_api
@@ -182,6 +195,30 @@ def search(request):
         .select_related("owner").prefetch_related("barbers").distinct()[:30]
     )
     return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
+
+
+@webapp_api
+@require_GET
+def nearby(request):
+    """Foydalanuvchi joylashuviga yaqin salonlar (masofa bo'yicha saralangan)."""
+    try:
+        lat = float(request.GET["lat"])
+        lng = float(request.GET["lng"])
+    except (KeyError, ValueError, TypeError):
+        return _err("lat/lng kerak")
+
+    shops = (
+        Shop.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
+        .select_related("owner").prefetch_related("barbers")
+    )
+    items = []
+    for s in shops:
+        dist = _haversine_km(lat, lng, float(s.latitude), float(s.longitude))
+        card = _shop_card(request, s)
+        card["distance_km"] = round(dist, 1)
+        items.append((dist, card))
+    items.sort(key=lambda x: x[0])
+    return JsonResponse({"shops": [c for _, c in items[:30]]})
 
 
 @webapp_api

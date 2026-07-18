@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/me/", api_views.me, name="api_me"),
     path("api/shops/", api_views.shops_list, name="api_shops"),
     path("api/search/", api_views.search, name="api_search"),
+    path("api/nearby/", api_views.nearby, name="api_nearby"),
     path("api/shops/<slug:slug>/", api_views.shop_detail, name="api_shop_detail"),
     path("api/slots/", api_views.slots_api, name="api_slots"),
     path("api/bookings/", api_views.booking_create, name="api_booking_create"),

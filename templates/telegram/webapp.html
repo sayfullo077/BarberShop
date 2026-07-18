@@ -1027,6 +1027,10 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
     </button>
   </div>
   <div style="padding:12px 16px 2px;">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button class="btn-primary btn-secondary" style="margin:0;flex:1;padding:11px;font-size:13.5px;" onclick="openMapView()"><i class="fa-solid fa-map-location-dot"></i> Xaritada</button>
+      <button class="btn-primary btn-secondary" style="margin:0;flex:1;padding:11px;font-size:13.5px;" onclick="showNearby()"><i class="fa-solid fa-location-crosshairs"></i> Yaqinimda</button>
+    </div>
     <div style="position:relative;">
       <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;"></i>
       <input class="form-input" id="shop-search" placeholder="Salon, usta yoki telefon..." style="padding-left:42px;padding-right:38px;" oninput="onSearchInput()" autocomplete="off">
@@ -1036,6 +1040,16 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   <div id="shops-content">
     <div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">YUKLANMOQDA</div></div>
   </div>
+</div>
+
+<!-- ══════════ MAP VIEW ══════════ -->
+<div class="screen" id="s-map">
+  <div class="topbar">
+    <div class="topbar-logo">Salonlar xaritasi</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+    <button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="map-view" style="width:100%;height:calc(100vh - 58px);"></div>
 </div>
 
 <!-- ══════════ SHOP DETAIL ══════════ -->
@@ -1618,7 +1632,9 @@ function shopCardHtml(s) {
         </div>
         <div class="shop-card-footer">
           <span><i class="fa-solid fa-scissors" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${s.barbers_count} sartarosh</span>
-          <i class="fa-solid fa-chevron-right"></i>
+          ${s.distance_km != null
+            ? `<span style="color:var(--text);font-weight:600;font-size:12.5px;"><i class="fa-solid fa-location-arrow" style="font-size:11px;margin-right:4px;"></i>${s.distance_km} km</span>`
+            : '<i class="fa-solid fa-chevron-right"></i>'}
         </div>
       </div>`;
 }
@@ -1674,6 +1690,54 @@ async function runSearch(q) {
     el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
       <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
   }
+}
+
+// ── Yaqinimda (joylashuv bo'yicha) ────────────────────────
+function showNearby() {
+  const inp = document.getElementById('shop-search');
+  if (inp) { inp.value = ''; document.getElementById('search-clear').style.display = 'none'; }
+  if (!navigator.geolocation) { uiAlert("Qurilma joylashuvni qo'llamaydi"); return; }
+  const el = document.getElementById('shops-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">JOYLASHUV ANIQLANMOQDA</div></div>';
+  navigator.geolocation.getCurrentPosition(async (p) => {
+    try {
+      const { shops } = await GET(`/api/nearby/?lat=${p.coords.latitude}&lng=${p.coords.longitude}`);
+      if (!shops.length) {
+        el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
+          <div class="empty-title">Yaqinda salon yo'q</div>
+          <div class="empty-sub">Joylashuvi belgilangan salonlar hali yo'q</div></div>`;
+        return;
+      }
+      el.innerHTML = '<div class="sec-label">Sizga yaqin</div>' + shops.map(shopCardHtml).join('');
+    } catch(e) {
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+    }
+  }, () => {
+    uiAlert('Joylashuv olinmadi. Brauzerda ruxsat bering.');
+    loadShops();
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+// ── Xarita ko'rinishi — barcha salonlar ───────────────────
+let mapView = null;
+async function openMapView() {
+  goTo('s-map');
+  const el = document.getElementById('map-view');
+  if (mapView) { mapView.remove(); mapView = null; }
+  mapView = L.map(el, { attributionControl: false }).setView([41.2995, 69.2401], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapView);
+  setTimeout(() => mapView && mapView.invalidateSize(), 350);
+  try {
+    const { shops } = await GET('/api/shops/');
+    const pts = [];
+    shops.forEach(s => {
+      if (s.latitude == null || s.longitude == null) return;
+      const m = L.marker([s.latitude, s.longitude]).addTo(mapView);
+      m.bindPopup(`<b>${esc(s.name)}</b><br>${esc((s.city ? s.city + ', ' : '') + (s.address || ''))}<br><a href="javascript:void(0)" onclick="openShop('${s.slug}')">Ochish →</a>`);
+      pts.push([s.latitude, s.longitude]);
+    });
+    if (pts.length) mapView.fitBounds(pts, { padding: [40, 40], maxZoom: 15 });
+  } catch (e) { /* xarita baribir ochiladi */ }
 }
 
 // ══════════════════════════════════════════════════════
