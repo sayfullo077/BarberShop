@@ -1514,6 +1514,23 @@ function uiAlert(message, cb) {
   if (cb) cb();
 }
 
+// Telefon raqamni nusxalash (clipboard API + zaxira)
+function copyPhone(phone) {
+  const done = () => { try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {} uiAlert('Raqam nusxalandi:\n' + phone); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(phone).then(done, () => _fallbackCopy(phone, done));
+  } else { _fallbackCopy(phone, done); }
+}
+function _fallbackCopy(text, done) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    done();
+  } catch (e) { uiAlert(text); }
+}
+
 const DEBUG = {{ DEBUG|yesno:"true,false" }};
 
 // ══════════════════════════════════════════════════════
@@ -1692,30 +1709,64 @@ async function runSearch(q) {
   }
 }
 
+// ── Foydalanuvchi joylashuvi ──────────────────────────────
+// Telegram WebApp ichida navigator.geolocation ko'pincha bloklanadi —
+// avval Telegram LocationManager (8.0+), keyin brauzer geolocation.
+function _browserGeo(onOk, onErr) {
+  if (!navigator.geolocation) { onErr(); return; }
+  navigator.geolocation.getCurrentPosition(
+    p => onOk(p.coords.latitude, p.coords.longitude),
+    () => onErr(),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+function getUserLocation(onOk, onErr) {
+  const lm = tg.LocationManager;
+  if (lm && _tgSupports('8.0') && typeof lm.init === 'function') {
+    try {
+      lm.init(() => {
+        try {
+          lm.getLocation(loc => {
+            if (loc && loc.latitude != null) onOk(loc.latitude, loc.longitude);
+            else onErr(lm);        // ruxsat berilmadi
+          });
+        } catch (e) { _browserGeo(onOk, onErr); }
+      });
+      return;
+    } catch (e) { /* fallback */ }
+  }
+  _browserGeo(onOk, onErr);
+}
+
 // ── Yaqinimda (joylashuv bo'yicha) ────────────────────────
 function showNearby() {
   const inp = document.getElementById('shop-search');
   if (inp) { inp.value = ''; document.getElementById('search-clear').style.display = 'none'; }
-  if (!navigator.geolocation) { uiAlert("Qurilma joylashuvni qo'llamaydi"); return; }
   const el = document.getElementById('shops-content');
   el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">JOYLASHUV ANIQLANMOQDA</div></div>';
-  navigator.geolocation.getCurrentPosition(async (p) => {
-    try {
-      const { shops } = await GET(`/api/nearby/?lat=${p.coords.latitude}&lng=${p.coords.longitude}`);
-      if (!shops.length) {
-        el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
-          <div class="empty-title">Yaqinda salon yo'q</div>
-          <div class="empty-sub">Joylashuvi belgilangan salonlar hali yo'q</div></div>`;
-        return;
+  getUserLocation(
+    async (lat, lng) => {
+      try {
+        const { shops } = await GET(`/api/nearby/?lat=${lat}&lng=${lng}`);
+        if (!shops.length) {
+          el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
+            <div class="empty-title">Yaqinda salon yo'q</div>
+            <div class="empty-sub">Joylashuvi belgilangan salonlar hali yo'q</div></div>`;
+          return;
+        }
+        el.innerHTML = '<div class="sec-label">Sizga yaqin</div>' + shops.map(shopCardHtml).join('');
+      } catch (e) {
+        el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
       }
-      el.innerHTML = '<div class="sec-label">Sizga yaqin</div>' + shops.map(shopCardHtml).join('');
-    } catch(e) {
-      el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+    },
+    (lm) => {
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
+        <div class="empty-title">Joylashuv olinmadi</div>
+        <div class="empty-sub">Joylashuvga ruxsat bering va qayta urining</div>
+        <button class="btn-primary btn-secondary" style="margin-top:14px;width:auto;padding:10px 18px;" onclick="showNearby()">Qayta urinish</button></div>`;
+      try { if (lm && lm.openSettings) lm.openSettings(); } catch (e) {}
     }
-  }, () => {
-    uiAlert('Joylashuv olinmadi. Brauzerda ruxsat bering.');
-    loadShops();
-  }, { enableHighAccuracy: true, timeout: 10000 });
+  );
 }
 
 // ── Xarita ko'rinishi — barcha salonlar ───────────────────
@@ -1778,7 +1829,10 @@ async function openShop(slug) {
       ${s.description ? `<div style="padding:14px 16px;color:var(--muted);font-size:13px;line-height:1.6;border-bottom:1px solid var(--border);">${esc(s.description)}</div>` : ''}
       <div class="info-block">
         <div class="info-row"><i class="fa-solid fa-location-dot"></i><span class="info-row-text">${s.city ? esc(s.city) + ', ' : ''}${esc(s.address)}</span></div>
-        <div class="info-row"><i class="fa-solid fa-phone"></i><span class="info-row-text">${esc(s.phone)}</span></div>
+        <div class="info-row"><i class="fa-solid fa-phone"></i>
+          <a href="tel:${(s.phone || '').replace(/[^+\d]/g, '')}" class="info-link info-row-text" style="flex:1;">${esc(s.phone)}</a>
+          ${s.phone ? `<i class="fa-solid fa-copy" onclick="copyPhone('${esc(s.phone)}')" style="cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;" title="Nusxalash"></i>` : ''}
+        </div>
         ${s.telegram_url ? `<div class="info-row"><i class="fa-brands fa-telegram"></i><a href="${s.telegram_url}" class="info-link">Telegram kanal</a></div>` : ''}
         ${s.instagram_url ? `<div class="info-row"><i class="fa-brands fa-instagram"></i><a href="${s.instagram_url}" class="info-link">Instagram</a></div>` : ''}
       </div>
@@ -2382,11 +2436,9 @@ async function geoSearch() {
 }
 
 function geoMyLocation() {
-  if (!navigator.geolocation) { uiAlert("Qurilma joylashuvni qo'llamaydi"); return; }
-  navigator.geolocation.getCurrentPosition(
-    p => placeMarker(p.coords.latitude, p.coords.longitude, true),
-    e => uiAlert('Joylashuv olinmadi. Brauzerda ruxsat bering.'),
-    { enableHighAccuracy: true, timeout: 10000 }
+  getUserLocation(
+    (lat, lng) => placeMarker(lat, lng, true),
+    (lm) => { uiAlert('Joylashuv olinmadi. Joylashuvga ruxsat bering.'); try { if (lm && lm.openSettings) lm.openSettings(); } catch (e) {} }
   );
 }
 
