@@ -184,8 +184,11 @@ def shop_detail(request, slug):
         "id": str(shop.id),
         "name": shop.name,
         "slug": shop.slug,
+        "city": shop.city,
         "address": shop.address,
         "phone": shop.phone,
+        "latitude": float(shop.latitude) if shop.latitude is not None else None,
+        "longitude": float(shop.longitude) if shop.longitude is not None else None,
         "description": shop.description,
         "logo_url": request.build_absolute_uri(shop.logo.url) if shop.logo else None,
         "cover_url": request.build_absolute_uri(shop.cover.url) if shop.cover else None,
@@ -840,10 +843,26 @@ def shop_update(request):
     if name:
         shop.name = name[:200]
         updated.append("name")
-    for field in ("address", "phone", "description", "instagram_url", "telegram_url"):
+    for field in ("city", "address", "phone", "description", "instagram_url", "telegram_url"):
         if body.get(field) is not None:
             setattr(shop, field, (body.get(field) or "").strip())
             updated.append(field)
+
+    # Joylashuv (ixtiyoriy) — lat/lng birga keladi yoki tozalanadi
+    if "latitude" in body or "longitude" in body:
+        lat, lng = body.get("latitude"), body.get("longitude")
+        if lat in (None, "") or lng in (None, ""):
+            shop.latitude = shop.longitude = None
+        else:
+            try:
+                lat_f, lng_f = float(lat), float(lng)
+                if not (-90 <= lat_f <= 90 and -180 <= lng_f <= 180):
+                    return _err("Koordinatalar noto'g'ri")
+                shop.latitude, shop.longitude = round(lat_f, 6), round(lng_f, 6)
+            except (TypeError, ValueError):
+                return _err("Koordinatalar noto'g'ri")
+        updated += ["latitude", "longitude"]
+
     if updated:
         shop.save(update_fields=updated)
     return JsonResponse({"ok": True, "slug": shop.slug, "name": shop.name})

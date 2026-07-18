@@ -1,0 +1,86 @@
+# BarberShop — PRODUCTION (shared server: host nginx + certbot oldida).
+# Bu server'da english.it-services.uz va portfolio ham bor — host nginx 80/443 ni
+# egallaydi. Shuning uchun Caddy YO'Q; web faqat 127.0.0.1:8081 da tinglaydi va
+# host nginx barber.it-services.uz'ni shu portga uzatadi.
+#
+# Ishga tushirish:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-barbershop}
+      POSTGRES_USER: ${DB_USER:-barbershop}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-barbershop} -d ${DB_NAME:-barbershop}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      RUN_MIGRATIONS: "1"
+    # Faqat localhost — host nginx shu yerga proxy qiladi (tashqariga ochilmaydi)
+    ports:
+      - "127.0.0.1:8081:8000"
+    volumes:
+      - ./staticfiles:/app/staticfiles   # host nginx /static/ ni shu yerdan beradi
+      - ./media:/app/media               # host nginx /media/ ni shu yerdan beradi
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+
+  qcluster:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+    volumes:
+      - ./media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      web:
+        condition: service_started
+    command: python manage.py qcluster
+
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      DJANGO_ALLOW_ASYNC_UNSAFE: "true"
+    volumes:
+      - ./media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    command: python manage.py run_bot
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -12,6 +12,7 @@ class Shop(BaseModel):
     )
     name = models.CharField(max_length=200, verbose_name="Nomi")
     slug = models.SlugField(max_length=220, unique=True, blank=True)
+    city = models.CharField(max_length=100, blank=True, verbose_name="Shahar")
     address = models.TextField(verbose_name="Manzil")
     phone = models.CharField(max_length=20, verbose_name="Telefon")
     telegram_channel_id = models.CharField(
