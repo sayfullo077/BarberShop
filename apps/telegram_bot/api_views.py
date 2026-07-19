@@ -135,6 +135,8 @@ def _shop_card(request, s):
         "city": s.city,
         "address": s.address,
         "phone": s.phone,
+        "category": s.category,
+        "category_display": s.get_category_display(),
         "latitude": float(s.latitude) if s.latitude is not None else None,
         "longitude": float(s.longitude) if s.longitude is not None else None,
         "logo_url": request.build_absolute_uri(s.logo.url) if s.logo else None,
@@ -195,10 +197,20 @@ def _public_shops_qs():
     )
 
 
+def _apply_audience(qs, audience):
+    """Mijoz filtri: 'men'/'women' — mos salonlar + unisex (ikkalasida ko'rinadi).
+    Boshqa qiymat (yoki 'all'/bo'sh) — hech qanday filtr."""
+    if audience == "men":
+        return qs.filter(category__in=[Shop.Category.MEN, Shop.Category.UNISEX])
+    if audience == "women":
+        return qs.filter(category__in=[Shop.Category.WOMEN, Shop.Category.UNISEX])
+    return qs
+
+
 @webapp_api
 @require_GET
 def shops_list(request):
-    shops = _ranked(_public_shops_qs())
+    shops = _ranked(_apply_audience(_public_shops_qs(), request.GET.get("audience")))
     return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
 
 
@@ -226,7 +238,8 @@ def search(request):
     phone_q = digits if len(digits) >= 3 else q
     filt |= Q(phone__icontains=phone_q) | Q(barbers__user__phone__icontains=phone_q)
 
-    shops = _ranked(_public_shops_qs().filter(filt).distinct()[:30])
+    base = _apply_audience(_public_shops_qs(), request.GET.get("audience"))
+    shops = _ranked(base.filter(filt).distinct()[:30])
     return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
 
 
@@ -240,7 +253,9 @@ def nearby(request):
     except (KeyError, ValueError, TypeError):
         return _err("lat/lng kerak")
 
-    shops = _public_shops_qs().filter(latitude__isnull=False, longitude__isnull=False)
+    shops = _apply_audience(_public_shops_qs(), request.GET.get("audience")).filter(
+        latitude__isnull=False, longitude__isnull=False
+    )
     items = []
     for s in shops:
         dist = _haversine_km(lat, lng, float(s.latitude), float(s.longitude))
@@ -300,6 +315,8 @@ def shop_detail(request, slug):
         "city": shop.city,
         "address": shop.address,
         "phone": shop.phone,
+        "category": shop.category,
+        "category_display": shop.get_category_display(),
         "rating_avg": round(shop.rating_avg, 1),
         "rating_count": shop.rating_count,
         "reviews": reviews,
@@ -739,9 +756,16 @@ def barber_register(request):
         while Shop.objects.filter(slug=slug_val).exists():
             slug_val = f"{base_slug}-{counter}"
             counter += 1
+        # Salon turi barber mutaxassisligidan: men→MEN, women→WOMEN, all→UNISEX
+        shop_category = {
+            "men": Shop.Category.MEN,
+            "women": Shop.Category.WOMEN,
+            "all": Shop.Category.UNISEX,
+        }.get(spec, Shop.Category.MEN)
         s = Shop.objects.create(
             owner=u, name=new_name, slug=slug_val,
             address=shop_addr, phone=phone or "", description=bio,
+            category=shop_category,
         )
         for day in range(6):
             WorkingHours.objects.create(
@@ -1110,6 +1134,12 @@ def shop_update(request):
     if name:
         shop.name = name[:200]
         updated.append("name")
+    category = body.get("category")
+    if category is not None:
+        if category not in Shop.Category.values:
+            return _err("Noto'g'ri salon turi")
+        shop.category = category
+        updated.append("category")
     for field in ("city", "address", "phone", "description",
                   "instagram_url", "telegram_url", "facebook_url", "tiktok_url", "youtube_url"):
         if body.get(field) is not None:

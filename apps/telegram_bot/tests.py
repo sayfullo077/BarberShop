@@ -4,7 +4,10 @@ _public_shops_qs — chala/soxta/bloklangan salonlar omma oldida ko'rinmasligi k
 """
 from django.test import TestCase
 
-from apps.telegram_bot.api_views import _public_shops_qs, _trust_score, _ranked
+from apps.telegram_bot.api_views import (
+    _public_shops_qs, _trust_score, _ranked, _apply_audience,
+)
+from apps.shops.models import Shop
 from apps.core.test_utils import make_shop, make_service
 
 
@@ -47,6 +50,34 @@ class PublicShopsGateTests(TestCase):
         shop.is_active = False
         shop.save()
         self.assertNotIn(shop, _public_shops_qs())
+
+
+class AudienceFilterTests(TestCase):
+    """Salon turi bo'yicha filtr: erkak/ayol salonlari aralashmasin,
+    unisex esa ikkala filtrda ham ko'rinsin."""
+
+    def setUp(self):
+        self.men = make_shop(category=Shop.Category.MEN)
+        self.women = make_shop(category=Shop.Category.WOMEN)
+        self.unisex = make_shop(category=Shop.Category.UNISEX)
+        self.qs = Shop.objects.all()
+
+    def test_men_filter_shows_men_and_unisex(self):
+        result = set(_apply_audience(self.qs, "men"))
+        self.assertEqual(result, {self.men, self.unisex})
+        self.assertNotIn(self.women, result)
+
+    def test_women_filter_shows_women_and_unisex(self):
+        result = set(_apply_audience(self.qs, "women"))
+        self.assertEqual(result, {self.women, self.unisex})
+        self.assertNotIn(self.men, result)
+
+    def test_all_or_empty_returns_everything(self):
+        for audience in (None, "", "all", "kattaklardan"):
+            self.assertEqual(
+                set(_apply_audience(self.qs, audience)),
+                {self.men, self.women, self.unisex},
+            )
 
 
 class TrustScoreTests(TestCase):

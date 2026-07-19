@@ -80,6 +80,25 @@
 }
 .theme-btn:active { background: var(--bg3); transform: scale(.92); }
 
+/* Salon turi (auditoriya) segment filtri — bosh sahifa + boshqaruv */
+#aud-seg, .seg-select {
+  display: flex; gap: 4px; margin-bottom: 8px;
+  background: var(--bg3); padding: 4px; border-radius: 12px;
+}
+.aud-btn {
+  flex: 1; border: 0; background: transparent; color: var(--muted);
+  font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  padding: 8px 4px; border-radius: 9px; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.aud-btn.active { background: var(--accent); color: var(--on-accent); }
+/* Salon turi chip — karta va detalda */
+.cat-chip {
+  display: inline-block; font-size: 10.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: 8px; vertical-align: middle;
+  background: var(--bg3); color: var(--muted);
+}
+
 html, body {
   height: 100%;
   background: var(--bg);
@@ -1031,6 +1050,11 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
       <button class="btn-primary btn-secondary" style="margin:0;flex:1;padding:11px;font-size:13.5px;" onclick="openMapView()"><i class="fa-solid fa-map-location-dot"></i> Xaritada</button>
       <button class="btn-primary btn-secondary" style="margin:0;flex:1;padding:11px;font-size:13.5px;" onclick="showNearby()"><i class="fa-solid fa-location-crosshairs"></i> Yaqinimda</button>
     </div>
+    <div id="aud-seg">
+      <button class="aud-btn" data-aud="men" onclick="setAudience('men')">Erkaklar</button>
+      <button class="aud-btn" data-aud="women" onclick="setAudience('women')">Ayollar</button>
+      <button class="aud-btn" data-aud="" onclick="setAudience('')">Barchasi</button>
+    </div>
     <div style="position:relative;">
       <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;"></i>
       <input class="form-input" id="shop-search" placeholder="Salon, usta yoki telefon..." style="padding-left:42px;padding-right:38px;" oninput="onSearchInput()" autocomplete="off">
@@ -1639,6 +1663,12 @@ async function POST(path, body) {
 // ══════════════════════════════════════════════════════
 // Shops List
 // ══════════════════════════════════════════════════════
+const CAT_LABEL = { men: 'Erkaklar', women: 'Ayollar', unisex: 'Unisex' };
+function catChip(cat) {
+  const label = CAT_LABEL[cat];
+  return label ? `<span class="cat-chip">${label}</span>` : '';
+}
+
 function shopCardHtml(s) {
   const loc = (s.city ? esc(s.city) + ', ' : '') + esc(s.address || '');
   return `
@@ -1648,7 +1678,7 @@ function shopCardHtml(s) {
             ${s.logo_url ? `<img src="${s.logo_url}" alt="">` : '✂️'}
           </div>
           <div class="shop-info">
-            <div class="shop-name">${esc(s.name)}</div>
+            <div class="shop-name">${esc(s.name)} ${catChip(s.category)}</div>
             <div class="shop-addr"><i class="fa-solid fa-location-dot" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${loc}</div>
           </div>
         </div>
@@ -1666,10 +1696,27 @@ function shopCardHtml(s) {
       </div>`;
 }
 
+// ── Salon turi filtri (auditoriya) — localStorage'da eslab qolinadi ──
+let audience = localStorage.getItem('audience') || '';   // '' = barchasi
+function audQS(sep) { return audience ? sep + 'audience=' + encodeURIComponent(audience) : ''; }
+function highlightAud() {
+  document.querySelectorAll('.aud-btn').forEach(b =>
+    b.classList.toggle('active', (b.dataset.aud || '') === audience));
+}
+function setAudience(v) {
+  audience = v || '';
+  localStorage.setItem('audience', audience);
+  highlightAud();
+  try { tg.HapticFeedback.selectionChanged(); } catch(e) {}
+  const q = (document.getElementById('shop-search')?.value || '').trim();
+  if (q.length >= 2) runSearch(q); else loadShops();
+}
+
 async function loadShops() {
+  highlightAud();
   const el = document.getElementById('shops-content');
   try {
-    const { shops } = await GET('/api/shops/');
+    const { shops } = await GET('/api/shops/' + audQS('?'));
     if (!shops.length) {
       el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">✂️</div>
         <div class="empty-title">Salonlar yo'q</div></div>`;
@@ -1704,7 +1751,7 @@ async function runSearch(q) {
   const el = document.getElementById('shops-content');
   el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
   try {
-    const { shops } = await GET('/api/search/?q=' + encodeURIComponent(q));
+    const { shops } = await GET('/api/search/?q=' + encodeURIComponent(q) + audQS('&'));
     if (!shops.length) {
       el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">🔍</div>
         <div class="empty-title">Topilmadi</div>
@@ -1757,7 +1804,7 @@ function showNearby() {
   getUserLocation(
     async (lat, lng) => {
       try {
-        const { shops } = await GET(`/api/nearby/?lat=${lat}&lng=${lng}`);
+        const { shops } = await GET(`/api/nearby/?lat=${lat}&lng=${lng}` + audQS('&'));
         if (!shops.length) {
           el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
             <div class="empty-title">Yaqinda salon yo'q</div>
@@ -1789,7 +1836,7 @@ async function openMapView() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapView);
   setTimeout(() => mapView && mapView.invalidateSize(), 350);
   try {
-    const { shops } = await GET('/api/shops/');
+    const { shops } = await GET('/api/shops/' + audQS('?'));
     const pts = [];
     shops.forEach(s => {
       if (s.latitude == null || s.longitude == null) return;
@@ -1839,6 +1886,7 @@ async function openShop(slug) {
       ${s.description ? `<div style="padding:14px 16px;color:var(--muted);font-size:13px;line-height:1.6;border-bottom:1px solid var(--border);">${esc(s.description)}</div>` : ''}
       <div class="info-block">
         <div class="info-row"><i class="fa-solid fa-location-dot"></i><span class="info-row-text">${s.city ? esc(s.city) + ', ' : ''}${esc(s.address)}</span></div>
+        ${s.category ? `<div class="info-row"><i class="fa-solid fa-users"></i><span class="info-row-text">${esc(s.category_display || CAT_LABEL[s.category] || '')}</span></div>` : ''}
         <div class="info-row"><i class="fa-solid fa-phone"></i>
           <a href="tel:${(s.phone || '').replace(/[^+\d]/g, '')}" class="info-link info-row-text" style="flex:1;">${esc(s.phone)}</a>
           ${s.phone ? `<i class="fa-solid fa-copy" onclick="copyPhone('${esc(s.phone)}')" style="cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;" title="Nusxalash"></i>` : ''}
@@ -2471,6 +2519,14 @@ async function loadShopManage() {
 
       <div class="sec-label">Salon ma'lumotlari</div>
       <div class="form-group"><label class="form-label">Nomi</label><input class="form-input" id="sm-name" value="${esc(s.name)}"></div>
+      <div class="form-group">
+        <label class="form-label">Salon turi <span style="color:var(--muted);font-weight:400;">(mijoz filtri)</span></label>
+        <div class="seg-select" id="sm-category-seg">
+          <button type="button" class="aud-btn" data-v="men" onclick="setSmCategory('men')">Erkaklar</button>
+          <button type="button" class="aud-btn" data-v="women" onclick="setSmCategory('women')">Ayollar</button>
+          <button type="button" class="aud-btn" data-v="unisex" onclick="setSmCategory('unisex')">Unisex</button>
+        </div>
+      </div>
       <div class="form-group"><label class="form-label">Manzil</label><input class="form-input" id="sm-address" value="${esc(s.address)}"></div>
       <div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="sm-phone" value="${esc(s.phone||'')}"></div>
       <div class="form-group"><label class="form-label">Tavsif</label><textarea class="form-input" id="sm-desc">${esc(s.description||'')}</textarea></div>
@@ -2505,15 +2561,24 @@ async function loadShopManage() {
       <div style="font-size:11.5px;color:var(--muted);padding:8px 16px 24px;text-align:center;">Salon o'chirilsa, undagi barcha sartaroshlar va bronlar ham o'chadi.</div>
     `;
     initLocationPicker('sm-map', s.latitude, s.longitude);
+    setSmCategory(s.category || 'men');
   } catch(e) {
     el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
   }
+}
+
+let smCategory = 'men';
+function setSmCategory(v) {
+  smCategory = v || 'men';
+  document.querySelectorAll('#sm-category-seg .aud-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.v === smCategory));
 }
 
 async function saveShopInfo() {
   try {
     const r = await POST('/api/shop/update/', {
       name: document.getElementById('sm-name').value.trim(),
+      category: smCategory,
       city: document.getElementById('sm-city').value.trim(),
       address: document.getElementById('sm-address').value.trim(),
       phone: document.getElementById('sm-phone').value.trim(),

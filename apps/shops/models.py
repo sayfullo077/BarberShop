@@ -4,6 +4,11 @@ from apps.core.models import BaseModel
 
 
 class Shop(BaseModel):
+    class Category(models.TextChoices):
+        MEN    = "men",    "Erkaklar saloni"
+        WOMEN  = "women",  "Ayollar (go'zallik) saloni"
+        UNISEX = "unisex", "Unisex (aralash)"
+
     owner = models.ForeignKey(
         "accounts.User",
         on_delete=models.CASCADE,
@@ -11,6 +16,13 @@ class Shop(BaseModel):
         limit_choices_to={"role__in": ["owner", "barber"]},
     )
     name = models.CharField(max_length=200, verbose_name="Nomi")
+    category = models.CharField(
+        max_length=10,
+        choices=Category.choices,
+        default=Category.MEN,
+        verbose_name="Salon turi",
+        help_text="Salon kimga xizmat qiladi (mijoz filtri uchun)",
+    )
     slug = models.SlugField(max_length=220, unique=True, blank=True)
     city = models.CharField(max_length=100, blank=True, verbose_name="Shahar")
     address = models.TextField(verbose_name="Manzil")
