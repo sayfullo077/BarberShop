@@ -185,7 +185,8 @@ def _public_shops_qs():
     from django.db.models import Count, Q
     return (
         Shop.objects.filter(
-            is_active=True, owner__phone_verified=True, owner__is_blocked=False,
+            is_active=True, is_suspended=False,
+            owner__phone_verified=True, owner__is_blocked=False,
         )
         .annotate(_nsvc=Count("services", filter=Q(services__is_active=True)))
         .filter(_nsvc__gt=0)
@@ -540,6 +541,42 @@ def review_create(request):
         rating=rating, comment=(body.get("comment") or "").strip()[:500],
     )
     _recompute_ratings(appt.barber, appt.shop)
+    return JsonResponse({"ok": True})
+
+
+@csrf_exempt
+@webapp_api
+def report_create(request):
+    """Mijoz salon ustidan shikoyat qiladi. Ochiq shikoyatlar chegaradan
+    oshsa salon avtomatik yashiriladi (moderatsiya uchun)."""
+    if request.method != "POST":
+        return _err("POST kerak", 405)
+    from apps.shops.models import Shop, Report
+    body = json.loads(request.body or b"{}")
+    reason = body.get("reason")
+    if reason not in Report.Reason.values:
+        return _err("Sabab noto'g'ri")
+
+    shop = Shop.objects.filter(id=body.get("shop_id")).first() or \
+        Shop.objects.filter(slug=body.get("shop_slug")).first()
+    if not shop:
+        return _err("Salon topilmadi", 404)
+    if shop.owner_id == request.tg_user.id:
+        return _err("O'z saloningizga shikoyat qilib bo'lmaydi")
+
+    _, created = Report.objects.get_or_create(
+        reporter=request.tg_user, shop=shop,
+        defaults={"reason": reason, "comment": (body.get("comment") or "").strip()[:500]},
+    )
+    if not created:
+        return _err("Siz allaqachon shikoyat qilgansiz")
+
+    # Chegaraga yetsa — avtomatik yashirish
+    open_count = Report.objects.filter(shop=shop, status=Report.Status.OPEN).count()
+    if open_count >= Report.AUTO_HIDE_THRESHOLD and not shop.is_suspended:
+        shop.is_suspended = True
+        shop.save(update_fields=["is_suspended"])
+
     return JsonResponse({"ok": True})
 
 

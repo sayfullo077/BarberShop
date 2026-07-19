@@ -1900,6 +1900,10 @@ async function openShop(slug) {
             <div style="font-size:11px;color:var(--faint);margin-top:6px;">${rv.date}</div>
           </div>`).join('')}
       </div>` : ''}
+
+      <div style="padding:8px 16px 28px;text-align:center;">
+        <a onclick="reportShop('${s.slug}')" style="color:var(--muted);font-size:12.5px;cursor:pointer;"><i class="fa-regular fa-flag" style="margin-right:5px;"></i>Shikoyat qilish</a>
+      </div>
     `;
 
     if (s.latitude != null && s.longitude != null) showDetailMap(+s.latitude, +s.longitude);
@@ -2605,6 +2609,33 @@ function openMapsNav(lat, lng) {
 function tgOpen(url) {
   if (!url) return;
   try { tg.openLink(url); } catch (e) { window.open(url, '_blank'); }
+}
+
+// ── Shikoyat ──────────────────────────────────────────────
+function reportShop(slug) {
+  const reasons = [
+    ['fake', 'Soxta / aldov'], ['inappropriate', 'Nomaqbul kontent'],
+    ['spam', 'Spam'], ['no_show', 'Kelmadi / aldadi'], ['other', 'Boshqa'],
+  ];
+  const ov = document.createElement('div');
+  ov.dataset.report = '1';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:var(--bg2);width:100%;border-radius:18px 18px 0 0;padding:18px 16px 24px;">
+    <div style="font-weight:600;font-size:16px;">Shikoyat sababi</div>
+    <div style="color:var(--muted);font-size:12.5px;margin:4px 0 14px;">Nima uchun shikoyat qilyapsiz?</div>
+    ${reasons.map(([k, label]) => `<button class="btn-primary btn-secondary" style="margin:0 0 8px;justify-content:flex-start;" onclick="submitReport('${slug}','${k}')">${label}</button>`).join('')}
+    <button class="btn-primary btn-secondary" style="margin-top:6px;color:var(--muted);" onclick="this.closest('[data-report]').remove()">Bekor qilish</button>
+  </div>`;
+  document.body.appendChild(ov);
+}
+async function submitReport(slug, reason) {
+  document.querySelector('[data-report]')?.remove();
+  try {
+    await POST('/api/reports/', { shop_slug: slug, reason });
+    try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+    uiAlert('Shikoyatingiz qabul qilindi. Tekshiramiz — rahmat!');
+  } catch (e) { uiAlert(e.message); }
 }
 
 async function handleShopImg(input, kind) {

@@ -24,6 +24,10 @@ class Shop(BaseModel):
     cover = models.ImageField(upload_to="shops/covers/", blank=True, null=True, verbose_name="Muqova")
     description = models.TextField(blank=True, verbose_name="Tavsif")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
+    is_suspended = models.BooleanField(
+        default=False, verbose_name="To'xtatilgan (moderatsiya)",
+        help_text="Shikoyatlar tufayli avtomatik yoki admin tomonidan yashiringan",
+    )
     rating_avg = models.FloatField(default=0, verbose_name="O'rtacha baho")
     rating_count = models.PositiveIntegerField(default=0, verbose_name="Baholar soni")
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -157,3 +161,45 @@ class ShopJoinRequest(BaseModel):
 
     def __str__(self):
         return f"{self.barber} → {self.shop} ({self.status})"
+
+
+class Report(BaseModel):
+    """Mijoz salon/barber ustidan shikoyat qiladi. N ta ochiq shikoyatdan
+    so'ng salon avtomatik yashiriladi (moderatsiya uchun)."""
+
+    #: Shu ko'p ochiq shikoyatdan so'ng salon avtomatik to'xtatiladi
+    AUTO_HIDE_THRESHOLD = 3
+
+    class Reason(models.TextChoices):
+        FAKE = "fake", "Soxta / aldov"
+        INAPPROPRIATE = "inappropriate", "Nomaqbul kontent"
+        SPAM = "spam", "Spam"
+        NO_SHOW = "no_show", "Kelmadi / aldadi"
+        OTHER = "other", "Boshqa"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Ochiq"
+        REVIEWED = "reviewed", "Ko'rib chiqilgan"
+        DISMISSED = "dismissed", "Rad etilgan"
+
+    reporter = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="reports_made",
+    )
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="reports")
+    reason = models.CharField(max_length=20, choices=Reason.choices, verbose_name="Sabab")
+    comment = models.TextField(blank=True, verbose_name="Izoh")
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.OPEN, verbose_name="Holat"
+    )
+
+    class Meta:
+        verbose_name = "Shikoyat"
+        verbose_name_plural = "Shikoyatlar"
+        db_table = "reports"
+        ordering = ["-created_at"]
+        # Bir mijoz bitta salonга bir marta shikoyat qiladi (report-abuse oldini olish)
+        unique_together = ("reporter", "shop")
+        indexes = [models.Index(fields=["shop", "status"])]
+
+    def __str__(self):
+        return f"{self.reporter} → {self.shop}: {self.reason}"
