@@ -9,23 +9,34 @@ Sartaroshxonalar uchun **onlayn bron qilish** platformasi. Telegram bot ichida o
 ## ✨ Asosiy imkoniyatlar
 
 **Mijoz uchun**
-- 🏪 Salonlar ro'yxati va batafsil sahifasi (xizmatlar, ustalar, ish vaqti)
-- 📅 Bron qilish oqimi: xizmat → usta → sana → bo'sh vaqt → tasdiqlash
-- 📞 Bron paytida telefon (majburiy — usta bog'lana olishi uchun)
-- 🗺️ Salon joylashuvi xaritada + «Yo'l ko'rsatish»
-- 🔔 Eslatmalar: navbatдан **5 daqiqa**, **1 soat** va **24 soat** oldin
+- 🏪 Salonlar ro'yxati (ishonch balli bo'yicha saralangan) va batafsil sahifa
+- 🔍 **Qidiruv** — salon/usta nomi yoki **telefon** bo'yicha
+- 🗺️ **Xaritada ko'rish** — barcha salonlar bitta xaritada; **«Yaqinimda»** — joylashuv bo'yicha masofa bilan
+- ⚡ **Dynamic Availability** — bir nechta xizmat tanlash; tizim jami davomiylik/narxni hisoblaydi va faqat **mos keladigan** bo'sh vaqtlarni ko'rsatadi
+- 📅 Bron oqimi: xizmat(lar) → usta → sana → bo'sh vaqt → telefon → tasdiqlash
+- ⭐ **Baho va sharh** — bron bajarilgach 5 yulduzli baho + izoh
+- 🚩 **Shikoyat** — nomaqbul salon ustidan (sabab bilan)
+- 🔔 Eslatmalar: navbatдан **5 daqiqa**, **1 soat**, **24 soat** oldin
 - 🧾 «Bronlarim» — kelayotgan/o'tgan bronlar, bekor qilish
+- 📞 Salon telefoni — bir bosishda **qo'ng'iroq** yoki **nusxalash**
 
 **Sartarosh / salon egasi uchun**
-- 🧑‍💼 Kabinet: bugungi/kelayotgan bronlar, statistika
-- ✂️ Xizmatlarni qo'shish/o'chirish, bronlash qabulini yoqish/o'chirish
-- 🏬 Salon boshqaruvi: nomi, shahar, manzil, logo, muqova, **joylashuv (xarita)** — tahrirlash yoki **o'chirish**
+- 🧑‍💼 Kabinet: bugungi/kelayotgan bronlar, statistika, profil holati
+- ✅ **Telefon tasdig'i** (Telegram kontakt) — profil ko'rinishi uchun shart
+- ✂️ Xizmatlar, bronlash qabuli, profil tahrirlash
+- 🏬 Salon boshqaruvi: nomi, shahar, manzil, logo, muqova, **joylashuv (xarita)**, **ijtimoiy tarmoqlar** (Instagram/Telegram/TikTok/Facebook/YouTube) — tahrir yoki **o'chirish**
 - 🙋 Boshqa sartaroshlarning **qo'shilish so'rovlari**ni qabul/rad qilish
 - 🧍 **Mustaqil (solo)** yoki **salonda** ishlash
 
+**Ishonch va nazorat (moderatsiya)**
+- 🔐 **Ko'rinish darvozasi**: salon faqat *tasdiqlangan telefon + ≥1 xizmat + bloklanmagan* bo'lsa omma oldida ko'rinadi — chala/soxta profillar avtomatik yashirin
+- 📊 **Ishonch balli** (Bayesian reyting) — yaxshi baholilar avtomatik yuqoriga
+- 🚫 **Avto-yashirish**: 3 ta shikoyatда salon avtomatik yashiriladi
+- 🛠️ **Django admin**: shikoyatlar navbati, salon to'xtatish/tiklash, foydalanuvchini bloklash
+
 **Bron hayot-sikli**
 - Holatlar: `pending → confirmed / cancelled / completed / no_show / expired`
-- ⏳ Vaqti o'tgan bronlar **avtomatik yopiladi** (django-q jadvali)
+- ⏳ Vaqti o'tgan bronlar avtomatik **«Bajarildi»** bo'ladi (baho berish uchun)
 - 🚫 Mijoz istalgan paytda **qo'lda bekor qila** oladi (WebApp yoki bot `/bekor`)
 
 **Dizayn**
