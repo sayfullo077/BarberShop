@@ -99,8 +99,8 @@ def send_5min_reminders():
 
 def expire_appointments():
     """
-    Belgilangan vaqti o'tib ketgan, hali faol (pending/confirmed) bronlarni
-    avtomatik "Muddati o'tdi" holatiga o'tkazadi.
+    Vaqti o'tgan faol (pending/confirmed) bronlarni "Bajarildi" (COMPLETED)
+    holatiga o'tkazadi — mijoz keyin baho bera oladi va usta faolligi ortadi.
     Schedule: har 5 daqiqada.
     """
     now = timezone.localtime()
@@ -118,11 +118,11 @@ def expire_appointments():
     count = 0
     for qs in (past_today, past_days):
         count += qs.update(
-            status=Appointment.Status.EXPIRED,
+            status=Appointment.Status.COMPLETED,
             updated_at=now,
         )
     if count:
-        logger.info("expire_appointments: %d ta bron muddati o'tdi.", count)
+        logger.info("expire_appointments: %d ta bron bajarildi (completed).", count)
     return count
 
 

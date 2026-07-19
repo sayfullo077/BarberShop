@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/bookings/", api_views.booking_create, name="api_booking_create"),
     path("api/my-bookings/", api_views.my_bookings, name="api_my_bookings"),
     path("api/bookings/<uuid:appointment_id>/cancel/", api_views.booking_cancel, name="api_booking_cancel"),
+    path("api/reviews/", api_views.review_create, name="api_review_create"),
 
     # Barber API
     path("api/barber/register/", api_views.barber_register, name="api_barber_register"),

@@ -24,6 +24,8 @@ class Shop(BaseModel):
     cover = models.ImageField(upload_to="shops/covers/", blank=True, null=True, verbose_name="Muqova")
     description = models.TextField(blank=True, verbose_name="Tavsif")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
+    rating_avg = models.FloatField(default=0, verbose_name="O'rtacha baho")
+    rating_count = models.PositiveIntegerField(default=0, verbose_name="Baholar soni")
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     instagram_url = models.URLField(blank=True)
@@ -98,6 +100,8 @@ class BarberProfile(BaseModel):
         verbose_name="Slot davomiyligi (daqiqa)",
     )
     is_accepting_bookings = models.BooleanField(default=True, verbose_name="Bronlash qabul qilmoqda")
+    rating_avg = models.FloatField(default=0, verbose_name="O'rtacha baho")
+    rating_count = models.PositiveIntegerField(default=0, verbose_name="Baholar soni")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="Tartibi")
 
     class Meta:

@@ -139,9 +139,33 @@ def _shop_card(request, s):
         "longitude": float(s.longitude) if s.longitude is not None else None,
         "logo_url": request.build_absolute_uri(s.logo.url) if s.logo else None,
         "barbers_count": s.barbers.filter(is_accepting_bookings=True).count(),
+        "rating_avg": round(s.rating_avg, 1),
+        "rating_count": s.rating_count,
         "telegram_url": s.telegram_url,
         "instagram_url": s.instagram_url,
     }
+
+
+# Bayesian o'rtacha — kam baholi/yangi salonlar bitta 5 yulduz bilan tepaga
+# chiqib ketmasligi uchun. Yangi (bahosiz) salonlar neytral PRIOR oladi.
+_PRIOR_MEAN = 4.2
+_PRIOR_WEIGHT = 5
+
+
+def _trust_score(shop):
+    return (
+        (shop.rating_avg * shop.rating_count + _PRIOR_MEAN * _PRIOR_WEIGHT)
+        / (shop.rating_count + _PRIOR_WEIGHT)
+    )
+
+
+def _ranked(shops):
+    """Salonlarni ishonch balli (Bayesian reyting, keyin baho soni) bo'yicha saralaydi."""
+    return sorted(
+        shops,
+        key=lambda s: (_trust_score(s), s.rating_count, s.created_at),
+        reverse=True,
+    )
 
 
 def _haversine_km(lat1, lng1, lat2, lng2):
@@ -173,7 +197,8 @@ def _public_shops_qs():
 @webapp_api
 @require_GET
 def shops_list(request):
-    return JsonResponse({"shops": [_shop_card(request, s) for s in _public_shops_qs()]})
+    shops = _ranked(_public_shops_qs())
+    return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
 
 
 @webapp_api
@@ -200,7 +225,7 @@ def search(request):
     phone_q = digits if len(digits) >= 3 else q
     filt |= Q(phone__icontains=phone_q) | Q(barbers__user__phone__icontains=phone_q)
 
-    shops = _public_shops_qs().filter(filt).distinct()[:30]
+    shops = _ranked(_public_shops_qs().filter(filt).distinct()[:30])
     return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
 
 
@@ -244,7 +269,19 @@ def shop_detail(request, slug):
             "slot_duration": b.slot_duration,
             "avatar_url": request.build_absolute_uri(b.user.avatar.url) if b.user.avatar else None,
             "bio": b.bio,
+            "rating_avg": round(b.rating_avg, 1),
+            "rating_count": b.rating_count,
         })
+
+    reviews = [
+        {
+            "author": (r.client.first_name or "Mijoz"),
+            "rating": r.rating,
+            "comment": r.comment,
+            "date": r.created_at.strftime("%d.%m.%Y"),
+        }
+        for r in shop.reviews.select_related("client").order_by("-created_at")[:10]
+    ]
     working_hours = []
     for wh in shop.working_hours.all():
         working_hours.append({
@@ -262,6 +299,9 @@ def shop_detail(request, slug):
         "city": shop.city,
         "address": shop.address,
         "phone": shop.phone,
+        "rating_avg": round(shop.rating_avg, 1),
+        "rating_count": shop.rating_count,
+        "reviews": reviews,
         "latitude": float(shop.latitude) if shop.latitude is not None else None,
         "longitude": float(shop.longitude) if shop.longitude is not None else None,
         "description": shop.description,
@@ -391,13 +431,16 @@ def my_bookings(request):
     appts = (
         Appointment.objects.filter(client=request.tg_user)
         .select_related("shop", "service", "barber__user")
+        .prefetch_related("review")
         .order_by("-date", "-start_time")[:30]
     )
     data = []
     for a in appts:
+        review = getattr(a, "review", None)
         data.append({
             "id": str(a.id),
             "shop_name": a.shop.name,
+            "shop_slug": a.shop.slug,
             "service_name": a.service.name,
             "barber_name": a.barber.user.get_full_name() or a.barber.user.username,
             "date": a.date.strftime("%d.%m.%Y"),
@@ -408,6 +451,8 @@ def my_bookings(request):
             "status_display": a.get_status_display(),
             "price": str(a.service.price),
             "can_cancel": a.status in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED),
+            "can_review": a.status == Appointment.Status.COMPLETED and review is None,
+            "my_rating": review.rating if review else None,
         })
     return JsonResponse({"appointments": data})
 
@@ -426,6 +471,59 @@ def booking_cancel(request, appointment_id):
     from django_q.tasks import async_task
     async_task("apps.notifications.tasks.send_cancellation_notice", str(appt.id))
 
+    return JsonResponse({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Reviews (baho / sharh)
+# ---------------------------------------------------------------------------
+
+def _recompute_ratings(barber, shop):
+    """Barber va salonning o'rtacha bahosini qayta hisoblaydi."""
+    from django.db.models import Avg, Count
+    from apps.bookings.models import Review
+    for obj, qs in (
+        (barber, Review.objects.filter(barber=barber)),
+        (shop, Review.objects.filter(shop=shop)),
+    ):
+        agg = qs.aggregate(a=Avg("rating"), c=Count("id"))
+        obj.rating_avg = round(agg["a"] or 0, 2)
+        obj.rating_count = agg["c"]
+        obj.save(update_fields=["rating_avg", "rating_count"])
+
+
+@csrf_exempt
+@webapp_api
+def review_create(request):
+    """Mijoz bajarilgan bron uchun baho beradi (1-5 yulduz + izoh)."""
+    if request.method != "POST":
+        return _err("POST kerak", 405)
+    from apps.bookings.models import Review
+    body = json.loads(request.body or b"{}")
+    try:
+        rating = int(body.get("rating"))
+    except (TypeError, ValueError):
+        return _err("Baho 1-5 bo'lishi kerak")
+    if not (1 <= rating <= 5):
+        return _err("Baho 1-5 bo'lishi kerak")
+
+    appt = (
+        Appointment.objects.filter(id=body.get("appointment_id"), client=request.tg_user)
+        .select_related("barber", "shop").first()
+    )
+    if not appt:
+        return _err("Bron topilmadi", 404)
+    if appt.status != Appointment.Status.COMPLETED:
+        return _err("Faqat bajarilgan bronga baho berish mumkin")
+    if Review.objects.filter(appointment=appt).exists():
+        return _err("Bu bron allaqachon baholangan")
+
+    Review.objects.create(
+        appointment=appt, client=request.tg_user,
+        barber=appt.barber, shop=appt.shop,
+        rating=rating, comment=(body.get("comment") or "").strip()[:500],
+    )
+    _recompute_ratings(appt.barber, appt.shop)
     return JsonResponse({"ok": True})
 
 

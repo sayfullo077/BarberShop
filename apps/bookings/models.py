@@ -118,3 +118,35 @@ class BlockedSlot(BaseModel):
 
     def __str__(self):
         return f"{self.barber} bloklangan: {self.date} {self.start_time}–{self.end_time}"
+
+
+class Review(BaseModel):
+    """Mijoz bajarilgan bron uchun barberга baho beradi (1-5 yulduz)."""
+
+    appointment = models.OneToOneField(
+        Appointment, on_delete=models.CASCADE, related_name="review",
+    )
+    client = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="reviews_given",
+    )
+    barber = models.ForeignKey(
+        "shops.BarberProfile", on_delete=models.CASCADE, related_name="reviews",
+    )
+    shop = models.ForeignKey(
+        "shops.Shop", on_delete=models.CASCADE, related_name="reviews",
+    )
+    rating = models.PositiveSmallIntegerField(verbose_name="Baho (1-5)")
+    comment = models.TextField(blank=True, verbose_name="Izoh")
+
+    class Meta:
+        verbose_name = "Sharh"
+        verbose_name_plural = "Sharhlar"
+        db_table = "reviews"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["shop", "-created_at"]),
+            models.Index(fields=["barber"]),
+        ]
+
+    def __str__(self):
+        return f"{self.client} → {self.barber}: {self.rating}★"

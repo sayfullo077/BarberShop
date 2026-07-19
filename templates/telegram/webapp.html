@@ -1648,7 +1648,12 @@ function shopCardHtml(s) {
           </div>
         </div>
         <div class="shop-card-footer">
-          <span><i class="fa-solid fa-scissors" style="color:var(--gold);margin-right:5px;font-size:10px;"></i>${s.barbers_count} sartarosh</span>
+          <span>
+            ${s.rating_count > 0
+              ? `<i class="fa-solid fa-star" style="color:#f5a623;font-size:11px;margin-right:3px;"></i><span style="color:var(--text);font-weight:600;">${s.rating_avg}</span> <span style="color:var(--muted);">(${s.rating_count})</span> &nbsp;·&nbsp; `
+              : ''}
+            <i class="fa-solid fa-scissors" style="color:var(--gold);margin-right:4px;font-size:10px;"></i>${s.barbers_count}
+          </span>
           ${s.distance_km != null
             ? `<span style="color:var(--text);font-weight:600;font-size:12.5px;"><i class="fa-solid fa-location-arrow" style="font-size:11px;margin-right:4px;"></i>${s.distance_km} km</span>`
             : '<i class="fa-solid fa-chevron-right"></i>'}
@@ -1837,6 +1842,14 @@ async function openShop(slug) {
         ${s.instagram_url ? `<div class="info-row"><i class="fa-brands fa-instagram"></i><a href="${s.instagram_url}" class="info-link">Instagram</a></div>` : ''}
       </div>
 
+      <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 2px;">
+        ${s.rating_count > 0
+          ? `<span style="font-size:20px;font-weight:700;">${s.rating_avg}</span>
+             <span style="color:#f5a623;font-size:15px;letter-spacing:1px;">${'★'.repeat(Math.round(s.rating_avg))}<span style="color:var(--bg3);">${'★'.repeat(5 - Math.round(s.rating_avg))}</span></span>
+             <span style="color:var(--muted);font-size:13px;">${s.rating_count} ta baho</span>`
+          : `<span style="color:var(--muted);font-size:13px;"><i class="fa-regular fa-star"></i> Hali baholanmagan</span>`}
+      </div>
+
       ${(s.latitude != null && s.longitude != null) ? `
       <div style="margin:10px 16px;">
         <div id="shop-detail-map" style="height:180px;border-radius:16px;overflow:hidden;border:1px solid var(--border);"></div>
@@ -1852,6 +1865,20 @@ async function openShop(slug) {
       <div id="tab-services">${renderServices(s.services)}</div>
       <div id="tab-barbers" style="display:none;">${renderBarbers(s.barbers)}</div>
       <div id="tab-hours" style="display:none;">${renderHours(s.working_hours)}</div>
+
+      ${s.reviews && s.reviews.length ? `
+      <div class="sec-label">Sharhlar <span style="color:var(--muted);font-weight:400;">(${s.rating_count})</span></div>
+      <div style="padding:0 16px 20px;">
+        ${s.reviews.map(rv => `
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 2px var(--shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:600;font-size:13.5px;">${esc(rv.author)}</span>
+              <span style="color:#f5a623;font-size:12px;letter-spacing:1px;">${'★'.repeat(rv.rating)}<span style="color:var(--bg3);">${'★'.repeat(5 - rv.rating)}</span></span>
+            </div>
+            ${rv.comment ? `<div style="font-size:13px;color:var(--text);margin-top:6px;line-height:1.45;">${esc(rv.comment)}</div>` : ''}
+            <div style="font-size:11px;color:var(--faint);margin-top:6px;">${rv.date}</div>
+          </div>`).join('')}
+      </div>` : ''}
     `;
 
     if (s.latitude != null && s.longitude != null) showDetailMap(+s.latitude, +s.longitude);
@@ -1903,7 +1930,9 @@ function renderBarbers(barbers) {
       <div class="barber-foot">
         <div class="barber-name">${esc(b.name)}</div>
         <div class="barber-role">Master Barber</div>
-        <div class="barber-exp">${b.experience_years} yil tajriba</div>
+        ${b.rating_count > 0
+          ? `<div class="barber-exp" style="color:#f5a623;"><i class="fa-solid fa-star" style="font-size:10px;"></i> ${b.rating_avg} <span style="color:var(--muted);">(${b.rating_count})</span></div>`
+          : `<div class="barber-exp">${b.experience_years} yil tajriba</div>`}
       </div>
     </div>`;
   });
@@ -2142,6 +2171,25 @@ async function loadMyBookings() {
   }
 }
 
+// ── Baholash (yulduz) ─────────────────────────────────────
+let _pickedStar = 0;
+function pickStar(n) {
+  _pickedStar = n;
+  document.querySelectorAll('#star-picker .star').forEach(s => {
+    s.style.color = (+s.dataset.n <= n) ? '#f5a623' : 'var(--bg3)';
+  });
+}
+async function submitReview(apptId) {
+  if (!_pickedStar) { uiAlert('Iltimos, yulduz tanlang'); return; }
+  const comment = (document.getElementById('review-comment').value || '').trim();
+  try {
+    await POST('/api/reviews/', { appointment_id: apptId, rating: _pickedStar, comment });
+    try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+    _pickedStar = 0;
+    uiAlert('Rahmat! Bahoyingiz qabul qilindi ✓', () => openDetail(apptId));
+  } catch (e) { uiAlert('Xatolik: ' + e.message); }
+}
+
 function bookingCard(a) {
   return `
   <div class="booking-item" onclick="openDetail('${a.id}')">
@@ -2152,6 +2200,8 @@ function bookingCard(a) {
         <i class="fa-regular fa-calendar"></i>${a.date}
         <i class="fa-regular fa-clock" style="margin-left:6px;"></i>${a.time}
       </div>
+      ${a.can_review ? `<div class="booking-when" style="color:#f5a623;margin-top:6px;"><i class="fa-solid fa-star"></i> Baholang</div>` : ''}
+      ${a.my_rating ? `<div class="booking-when" style="color:#f5a623;margin-top:6px;letter-spacing:2px;">${'★'.repeat(a.my_rating)}</div>` : ''}
     </div>
     <span class="badge badge-${a.status}">${a.status_display}</span>
   </div>`;
@@ -2188,6 +2238,19 @@ async function openDetail(id) {
       ${a.can_cancel ? `<button class="btn-primary btn-danger" onclick="cancelBooking('${a.id}')">
         <i class="fa-solid fa-xmark"></i> Bronni bekor qilish
       </button>` : ''}
+      ${a.can_review ? `
+        <div class="sec-label">Xizmatni baholang</div>
+        <div class="summary-box" style="padding:18px 16px;text-align:center;">
+          <div id="star-picker" style="font-size:36px;letter-spacing:8px;margin-bottom:12px;">
+            ${[1,2,3,4,5].map(n => `<span class="star" data-n="${n}" onclick="pickStar(${n})" style="cursor:pointer;color:var(--bg3);">★</span>`).join('')}
+          </div>
+          <textarea class="form-input" id="review-comment" placeholder="Izoh qoldiring (ixtiyoriy)" style="height:64px;"></textarea>
+          <button class="btn-primary" style="margin-top:12px;" onclick="submitReview('${a.id}')"><i class="fa-solid fa-paper-plane"></i> Baho yuborish</button>
+        </div>` : ''}
+      ${a.my_rating ? `<div class="sec-label">Sizning bahoyingiz</div>
+        <div class="summary-box" style="padding:16px;text-align:center;font-size:28px;letter-spacing:4px;">
+          <span style="color:#f5a623;">${'★'.repeat(a.my_rating)}</span><span style="color:var(--bg3);">${'★'.repeat(5 - a.my_rating)}</span>
+        </div>` : ''}
     `;
   } catch(e) {
     el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;

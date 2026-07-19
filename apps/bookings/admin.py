@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Appointment, BlockedSlot
+from .models import Appointment, BlockedSlot, Review
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ("client", "barber", "shop", "rating", "created_at")
+    list_filter = ("rating", "shop")
+    search_fields = ("client__username", "barber__user__username", "comment")
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(Appointment)
