@@ -198,6 +198,23 @@ To'liq namuna: [`.env.example`](.env.example) (dev) va [`.env.prod.example`](.en
 
 ---
 
+## 🧪 Testlar
+
+Kritik biznes-mantiq (slot generatsiyasi, overlap, bron yaratish, ko'rinish
+darvozasi, ishonch balli) avtomatik testlar bilan qoplangan. Django'ning o'z
+test framework'i — qo'shimcha bog'liqlik yo'q.
+
+```bash
+DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test
+```
+
+- Sozlama: `config/settings/test.py` (Redis/token/cluster'siz, tez).
+- Obyekt yaratuvchilar: `apps/core/test_utils.py`.
+- **CI:** `.github/workflows/ci.yml` — har push/PR da PostgreSQL bilan testlarни
+  va migratsiya sinxronligини (`makemigrations --check`) tekshiradi.
+
+---
+
 ## 🛠️ Foydali komandalar
 
 ```bash
