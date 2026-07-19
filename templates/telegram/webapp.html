@@ -1538,10 +1538,15 @@ const DEBUG = {{ DEBUG|yesno:"true,false" }};
 // ══════════════════════════════════════════════════════
 const bk = {
   shopSlug:null, shopName:null,
-  serviceId:null, serviceName:null, serviceDuration:null, servicePrice:null,
+  services:[],   // [{id,name,duration,price}] — ko'p xizmat
   barberId:null, barberName:null,
   date:null, time:null,
 };
+function bkTotalDuration(){ return bk.services.reduce((s,x)=>s+(+x.duration||0),0); }
+function bkTotalPrice(){ return bk.services.reduce((s,x)=>s+(+x.price||0),0); }
+function bkServiceIds(){ return bk.services.map(x=>x.id); }
+function bkServiceNames(){ return bk.services.map(x=>x.name).join(', '); }
+function bkHasService(id){ return bk.services.some(x=>x.id===''+id); }
 let shopCache = null;
 let screenStack = [];
 
@@ -1809,7 +1814,7 @@ async function openShop(slug) {
     bk.shopSlug = s.slug; bk.shopName = s.name;
     // Har safar salonga kirilganda bron holatini tozalash — aks holda
     // oldingi brondan qolgan xizmat/usta yangi salon bilan aralashib ketadi.
-    bk.serviceId = bk.serviceName = bk.serviceDuration = bk.servicePrice = null;
+    bk.services = [];
     bk.barberId = bk.barberName = null;
     bk.date = bk.time = null;
 
@@ -1838,8 +1843,24 @@ async function openShop(slug) {
           <a href="tel:${(s.phone || '').replace(/[^+\d]/g, '')}" class="info-link info-row-text" style="flex:1;">${esc(s.phone)}</a>
           ${s.phone ? `<i class="fa-solid fa-copy" onclick="copyPhone('${esc(s.phone)}')" style="cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;" title="Nusxalash"></i>` : ''}
         </div>
-        ${s.telegram_url ? `<div class="info-row"><i class="fa-brands fa-telegram"></i><a href="${s.telegram_url}" class="info-link">Telegram kanal</a></div>` : ''}
-        ${s.instagram_url ? `<div class="info-row"><i class="fa-brands fa-instagram"></i><a href="${s.instagram_url}" class="info-link">Instagram</a></div>` : ''}
+        ${[
+          ['instagram_url','fa-instagram','#E1306C'],
+          ['telegram_url','fa-telegram','#229ED9'],
+          ['tiktok_url','fa-tiktok','var(--text)'],
+          ['facebook_url','fa-facebook','#1877F2'],
+          ['youtube_url','fa-youtube','#FF0000'],
+        ].some(x => s[x[0]]) ? `<div class="info-row" style="padding-top:10px;">
+          <i class="fa-solid fa-share-nodes"></i>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;">
+            ${[
+              ['instagram_url','fa-instagram','#E1306C'],
+              ['telegram_url','fa-telegram','#229ED9'],
+              ['tiktok_url','fa-tiktok','var(--text)'],
+              ['facebook_url','fa-facebook','#1877F2'],
+              ['youtube_url','fa-youtube','#FF0000'],
+            ].filter(x => s[x[0]]).map(x => `<a onclick="tgOpen('${s[x[0]]}')" style="cursor:pointer;font-size:22px;color:${x[2]};"><i class="fa-brands ${x[1]}"></i></a>`).join('')}
+          </div>
+        </div>` : ''}
       </div>
 
       <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 2px;">
@@ -1901,19 +1922,32 @@ function shopTab(name, el) {
   );
 }
 
-function renderServices(services) {
+function renderServices(services, multi) {
   if (!services.length) return `<div class="empty-wrap"><div class="empty-sub">Xizmatlar topilmadi</div></div>`;
   let html = '<ul class="price-list">';
   services.forEach(s => {
-    html += `
-    <li class="price-item" onclick="pickService('${s.id}','${esc(s.name)}',${s.duration},'${s.price}')">
-      <div class="pi-left">
-        <div class="pi-name">${esc(s.name)}</div>
-        <div class="pi-meta">${s.duration} daqiqa${s.category ? ' · ' + esc(s.category) : ''}</div>
-      </div>
-      <div class="pi-dots"></div>
-      <div class="pi-price">${fmtP(s.price)}</div>
-    </li>`;
+    if (multi) {
+      const sel = bkHasService(s.id);
+      html += `
+      <li class="price-item ${sel ? 'selected' : ''}" onclick="toggleService('${s.id}','${esc(s.name)}',${s.duration},'${s.price}')">
+        <div class="svc-check" style="margin-right:10px;">${sel ? '<i class="fa-solid fa-check"></i>' : ''}</div>
+        <div class="pi-left">
+          <div class="pi-name">${esc(s.name)}</div>
+          <div class="pi-meta">${s.duration} daqiqa${s.category ? ' · ' + esc(s.category) : ''}</div>
+        </div>
+        <div class="pi-price">${fmtP(s.price)}</div>
+      </li>`;
+    } else {
+      html += `
+      <li class="price-item" onclick="pickServiceFromShop('${s.id}','${esc(s.name)}',${s.duration},'${s.price}')">
+        <div class="pi-left">
+          <div class="pi-name">${esc(s.name)}</div>
+          <div class="pi-meta">${s.duration} daqiqa${s.category ? ' · ' + esc(s.category) : ''}</div>
+        </div>
+        <div class="pi-dots"></div>
+        <div class="pi-price">${fmtP(s.price)}</div>
+      </li>`;
+    }
   });
   return html + '</ul>';
 }
@@ -1955,7 +1989,7 @@ function renderHours(hours) {
 // Booking Flow
 // ══════════════════════════════════════════════════════
 function startBooking() {
-  bk.serviceId = bk.serviceName = bk.serviceDuration = bk.servicePrice = null;
+  bk.services = [];
   bk.barberId = bk.barberName = null;
   bk.date = bk.time = null;
   // Only keep shop in stack
@@ -1963,25 +1997,51 @@ function startBooking() {
   showServiceScreen();
 }
 
-// — Service screen —
+// — Service screen (ko'p xizmat tanlash) —
 function showServiceScreen() {
   if (!shopCache) return;
-  document.getElementById('service-content').innerHTML = renderServices(shopCache.services);
+  renderServiceScreen();
   goTo('s-service');
   tg.MainButton.hide();
 }
 
-function pickService(id, name, duration, price) {
-  bk.serviceId = id; bk.serviceName = name;
-  bk.serviceDuration = duration; bk.servicePrice = price;
+function renderServiceScreen() {
+  if (!shopCache) return;
+  const n = bk.services.length, dur = bkTotalDuration(), price = bkTotalPrice();
+  let html = '<div class="sec-label">Xizmatlarni tanlang <span style="color:var(--muted);font-weight:400;">(bir nechta bo\'lishi mumkin)</span></div>';
+  html += renderServices(shopCache.services, true);
+  if (n) {
+    html += `
+      <div class="summary-box" style="margin-top:12px;">
+        <div class="sum-row"><span class="sum-label">Tanlangan</span><span class="sum-val">${n} xizmat · ${dur} daqiqa</span></div>
+        <div class="sum-row"><span class="sum-label">Jami</span><span class="sum-val sum-price">${fmtP(price)}</span></div>
+      </div>
+      <button class="btn-primary" onclick="serviceNext()">Davom etish <i class="fa-solid fa-arrow-right"></i></button>`;
+  } else {
+    html += `<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 16px 24px;">Kamida bitta xizmat tanlang</div>`;
+  }
+  document.getElementById('service-content').innerHTML = html;
+}
+
+function toggleService(id, name, duration, price) {
+  const i = bk.services.findIndex(x => x.id === '' + id);
+  if (i >= 0) bk.services.splice(i, 1);
+  else bk.services.push({ id: '' + id, name, duration: +duration, price: +price });
   tg.HapticFeedback.selectionChanged();
-  // Agar usta oldindan tanlangan bo'lsa (Ustalar tabidan) — to'g'ridan vaqtga
+  renderServiceScreen();
+}
+
+function serviceNext() {
+  if (!bk.services.length) return;
   if (bk.barberId) showDatetimeScreen();
   else showBarberScreen();
 }
 
+// Salon detalidan xizmatga bosilganda — qo'shib, ko'p-tanlash ekraniga o'tadi
 function pickServiceFromShop(id, name, duration, price) {
-  pickService(id, name, duration, price);
+  if (!bkHasService(id)) bk.services.push({ id: '' + id, name, duration: +duration, price: +price });
+  tg.HapticFeedback.selectionChanged();
+  showServiceScreen();
 }
 
 // — Barber screen —
@@ -1996,7 +2056,7 @@ function pickBarberFromShop(id, name, slotDur) {
   bk.barberId = id; bk.barberName = name;
   tg.HapticFeedback.selectionChanged();
   // Xizmat hali tanlanmagan bo'lsa — avval xizmat tanlansin (dead-end oldini olish)
-  if (bk.serviceId) showDatetimeScreen();
+  if (bk.services.length) showDatetimeScreen();
   else showServiceScreen();
 }
 
@@ -2009,7 +2069,7 @@ function pickBarber(id, name, slotDur) {
 // — DateTime screen —
 function showDatetimeScreen() {
   // Xavfsizlik: xizmat yoki usta tanlanmagan bo'lsa, oldingi qadamga qaytarish
-  if (!bk.serviceId) { showServiceScreen(); return; }
+  if (!bk.services.length) { showServiceScreen(); return; }
   if (!bk.barberId)  { showBarberScreen();  return; }
   const today = new Date().toISOString().split('T')[0];
   const inp = document.getElementById('date-input');
@@ -2032,7 +2092,7 @@ async function loadSlots(date) {
   const el = document.getElementById('slots-area');
   el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">BO\'SH VAQTLAR</div></div>';
   try {
-    const { slots } = await GET(`/api/slots/?barber_id=${bk.barberId}&date=${date}`);
+    const { slots } = await GET(`/api/slots/?barber_id=${bk.barberId}&date=${date}&duration=${bkTotalDuration()}`);
     if (!slots.length) {
       el.innerHTML = `<div class="empty-wrap">
         <div class="empty-icon" style="font-size:32px;">😔</div>
@@ -2067,12 +2127,12 @@ function showConfirmScreen() {
   document.getElementById('confirm-err').style.display = 'none';
   document.getElementById('confirm-summary').innerHTML = `
     <div class="sum-row"><span class="sum-label">Salon</span><span class="sum-val">${esc(bk.shopName)}</span></div>
-    <div class="sum-row"><span class="sum-label">Xizmat</span><span class="sum-val">${esc(bk.serviceName)}</span></div>
-    <div class="sum-row"><span class="sum-label">Davomiyligi</span><span class="sum-val">${bk.serviceDuration} daqiqa</span></div>
+    <div class="sum-row"><span class="sum-label">${bk.services.length > 1 ? 'Xizmatlar' : 'Xizmat'}</span><span class="sum-val">${esc(bkServiceNames())}</span></div>
+    <div class="sum-row"><span class="sum-label">Davomiyligi</span><span class="sum-val">${bkTotalDuration()} daqiqa</span></div>
     <div class="sum-row"><span class="sum-label">Usta</span><span class="sum-val">${esc(bk.barberName)}</span></div>
     <div class="sum-row"><span class="sum-label">Sana</span><span class="sum-val">${fmtDate(bk.date)}</span></div>
     <div class="sum-row"><span class="sum-label">Vaqt</span><span class="sum-val">${bk.time}</span></div>
-    <div class="sum-row"><span class="sum-label">Narx</span><span class="sum-val sum-price">${fmtP(bk.servicePrice)}</span></div>
+    <div class="sum-row"><span class="sum-label">Narx</span><span class="sum-val sum-price">${fmtP(bkTotalPrice())}</span></div>
   `;
   // Telefon maydoni — majburiy. Mavjud raqam bilan oldindan to'ldiriladi.
   const phoneGroup = document.getElementById('confirm-phone-group');
@@ -2109,7 +2169,7 @@ async function confirmBooking() {
   document.getElementById('confirm-err').style.display = 'none';
   try {
     const d = await POST('/api/bookings/', {
-      barber_id:bk.barberId, service_id:bk.serviceId, date:bk.date, time:bk.time,
+      barber_id:bk.barberId, service_ids:bkServiceIds(), date:bk.date, time:bk.time,
       phone: phone
     });
     tg.MainButton.hideProgress();
@@ -2411,6 +2471,13 @@ async function loadShopManage() {
       <div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="sm-phone" value="${esc(s.phone||'')}"></div>
       <div class="form-group"><label class="form-label">Tavsif</label><textarea class="form-input" id="sm-desc">${esc(s.description||'')}</textarea></div>
 
+      <div class="sec-label">Ijtimoiy tarmoqlar <span style="color:var(--muted);font-weight:400;">(portfolio)</span></div>
+      <div class="form-group"><label class="form-label"><i class="fa-brands fa-instagram" style="margin-right:6px;"></i>Instagram</label><input class="form-input" id="sm-instagram" value="${esc(s.instagram_url||'')}" placeholder="https://instagram.com/..." inputmode="url"></div>
+      <div class="form-group"><label class="form-label"><i class="fa-brands fa-telegram" style="margin-right:6px;"></i>Telegram</label><input class="form-input" id="sm-telegram" value="${esc(s.telegram_url||'')}" placeholder="https://t.me/..." inputmode="url"></div>
+      <div class="form-group"><label class="form-label"><i class="fa-brands fa-tiktok" style="margin-right:6px;"></i>TikTok</label><input class="form-input" id="sm-tiktok" value="${esc(s.tiktok_url||'')}" placeholder="https://tiktok.com/@..." inputmode="url"></div>
+      <div class="form-group"><label class="form-label"><i class="fa-brands fa-facebook" style="margin-right:6px;"></i>Facebook</label><input class="form-input" id="sm-facebook" value="${esc(s.facebook_url||'')}" placeholder="https://facebook.com/..." inputmode="url"></div>
+      <div class="form-group"><label class="form-label"><i class="fa-brands fa-youtube" style="margin-right:6px;"></i>YouTube</label><input class="form-input" id="sm-youtube" value="${esc(s.youtube_url||'')}" placeholder="https://youtube.com/@..." inputmode="url"></div>
+
       <div class="sec-label">Joylashuv <span style="color:var(--muted);font-weight:400;">(ixtiyoriy)</span></div>
       <div class="form-group"><label class="form-label">Shahar</label><input class="form-input" id="sm-city" value="${esc(s.city||'')}" placeholder="Toshkent"></div>
       <div class="form-group">
@@ -2447,6 +2514,11 @@ async function saveShopInfo() {
       address: document.getElementById('sm-address').value.trim(),
       phone: document.getElementById('sm-phone').value.trim(),
       description: document.getElementById('sm-desc').value.trim(),
+      instagram_url: document.getElementById('sm-instagram').value.trim(),
+      telegram_url: document.getElementById('sm-telegram').value.trim(),
+      tiktok_url: document.getElementById('sm-tiktok').value.trim(),
+      facebook_url: document.getElementById('sm-facebook').value.trim(),
+      youtube_url: document.getElementById('sm-youtube').value.trim(),
       latitude: smLoc.lat,
       longitude: smLoc.lng,
     });
@@ -2526,6 +2598,12 @@ function showDetailMap(lat, lng) {
 // Tashqi xaritada yo'l ko'rsatish (Telegram tashqi havolani ochadi)
 function openMapsNav(lat, lng) {
   const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  try { tg.openLink(url); } catch (e) { window.open(url, '_blank'); }
+}
+
+// Tashqi havolani ochish (ijtimoiy tarmoqlar)
+function tgOpen(url) {
+  if (!url) return;
   try { tg.openLink(url); } catch (e) { window.open(url, '_blank'); }
 }
 

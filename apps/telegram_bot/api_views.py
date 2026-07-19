@@ -309,6 +309,9 @@ def shop_detail(request, slug):
         "cover_url": request.build_absolute_uri(shop.cover.url) if shop.cover else None,
         "telegram_url": shop.telegram_url,
         "instagram_url": shop.instagram_url,
+        "facebook_url": shop.facebook_url,
+        "tiktok_url": shop.tiktok_url,
+        "youtube_url": shop.youtube_url,
         "services": [
             {
                 "id": str(s["id"]),
@@ -344,7 +347,12 @@ def slots_api(request):
         return JsonResponse({"slots": [], "slot_duration": 30})
 
     barber = get_object_or_404(BarberProfile, id=barber_id, is_accepting_bookings=True)
-    slots = get_available_slots(barber, selected_date)
+    # Dynamic availability — tanlangan xizmatlar davomiyligi bo'yicha bo'sh slotlar
+    try:
+        duration = int(request.GET.get("duration") or 0) or None
+    except ValueError:
+        duration = None
+    slots = get_available_slots(barber, selected_date, duration=duration)
     return JsonResponse({
         "slots": [s.strftime("%H:%M") for s in slots],
         "slot_duration": barber.slot_duration,
@@ -370,10 +378,15 @@ def booking_create(request):
     ).select_related("shop").first()
     if not barber:
         return _err("Sartarosh topilmadi yoki bron qabul qilmayapti", status=404)
-    service = Service.objects.filter(
-        id=data.get("service_id"), is_active=True, shop=barber.shop
-    ).first()
-    if not service:
+
+    # Ko'p xizmat: service_ids (ro'yxat) yoki eski service_id (bitta)
+    ids = data.get("service_ids") or ([data["service_id"]] if data.get("service_id") else [])
+    services = list(
+        Service.objects.filter(id__in=ids, is_active=True, shop=barber.shop)
+    )
+    # Tanlangan tartibни saqlash
+    services.sort(key=lambda s: ids.index(str(s.id)) if str(s.id) in ids else 0)
+    if not services:
         return _err("Xizmat topilmadi. Iltimos, xizmatni qayta tanlang", status=404)
 
     try:
@@ -405,7 +418,7 @@ def booking_create(request):
         appt = create_appointment(
             client=user,
             barber=barber,
-            service=service,
+            services=services,
             date=selected_date,
             start_time=start_time,
         )
@@ -420,7 +433,7 @@ def booking_create(request):
         "appointment_id": str(appt.id),
         "date": appt.date.strftime("%d.%m.%Y"),
         "time": appt.start_time.strftime("%H:%M"),
-        "service": appt.service.name,
+        "service": ", ".join(s.name for s in services),
         "shop": appt.shop.name,
     })
 
@@ -431,17 +444,20 @@ def my_bookings(request):
     appts = (
         Appointment.objects.filter(client=request.tg_user)
         .select_related("shop", "service", "barber__user")
-        .prefetch_related("review")
+        .prefetch_related("review", "services")
         .order_by("-date", "-start_time")[:30]
     )
     data = []
     for a in appts:
         review = getattr(a, "review", None)
+        svc_list = list(a.services.all()) or [a.service]
+        total_price = sum(int(s.price) for s in svc_list)
         data.append({
             "id": str(a.id),
             "shop_name": a.shop.name,
             "shop_slug": a.shop.slug,
-            "service_name": a.service.name,
+            "service_name": ", ".join(s.name for s in svc_list),
+            "total_price": str(total_price),
             "barber_name": a.barber.user.get_full_name() or a.barber.user.username,
             "date": a.date.strftime("%d.%m.%Y"),
             "date_iso": a.date.isoformat(),
@@ -449,7 +465,7 @@ def my_bookings(request):
             "end_time": a.end_time.strftime("%H:%M"),
             "status": a.status,
             "status_display": a.get_status_display(),
-            "price": str(a.service.price),
+            "price": str(total_price),
             "can_cancel": a.status in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED),
             "can_review": a.status == Appointment.Status.COMPLETED and review is None,
             "my_rating": review.rating if review else None,
@@ -1057,7 +1073,8 @@ def shop_update(request):
     if name:
         shop.name = name[:200]
         updated.append("name")
-    for field in ("city", "address", "phone", "description", "instagram_url", "telegram_url"):
+    for field in ("city", "address", "phone", "description",
+                  "instagram_url", "telegram_url", "facebook_url", "tiktok_url", "youtube_url"):
         if body.get(field) is not None:
             setattr(shop, field, (body.get(field) or "").strip())
             updated.append(field)

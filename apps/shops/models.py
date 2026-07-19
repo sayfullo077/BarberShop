@@ -30,6 +30,9 @@ class Shop(BaseModel):
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     instagram_url = models.URLField(blank=True)
     telegram_url = models.URLField(blank=True)
+    facebook_url = models.URLField(blank=True)
+    tiktok_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True)
 
     class Meta:
         verbose_name = "Salon"

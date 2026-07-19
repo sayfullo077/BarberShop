@@ -31,6 +31,13 @@ class Appointment(BaseModel):
         "services.Service",
         on_delete=models.PROTECT,
         related_name="appointments",
+        help_text="Asosiy (birinchi) xizmat",
+    )
+    services = models.ManyToManyField(
+        "services.Service",
+        related_name="appointments_multi",
+        blank=True,
+        help_text="Barcha tanlangan xizmatlar (ko'p xizmat brони)",
     )
     shop = models.ForeignKey(
         "shops.Shop",
