@@ -20,6 +20,8 @@ class User(AbstractUser):
         null=True, blank=True, default=None,
         verbose_name="Auditoriya tanlovi",
     )
+    #: Oxirgi «vaqt keldi» (re-engagement) eslatmasi yuborilgan vaqt (anti-spam).
+    last_reengaged_at = models.DateTimeField(null=True, blank=True, default=None)
     telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     telegram_username = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)

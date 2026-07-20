@@ -149,6 +149,67 @@ def send_day_before_reminders():
         appt.save(update_fields=["reminded_24h"])
 
 
+# ── Re-engagement (retention): qaytmagan mijozlarni qaytarish ──────────────
+REENGAGE_AFTER_DAYS = 30      # soch olish sikli ~ 3-4 hafta
+REENGAGE_COOLDOWN_DAYS = 30   # bir mijozga ko'pi bilan shuncha kunda 1 marta
+
+
+def send_reengagement_nudges():
+    """«Vaqt keldi 💈» — oxirgi tashrifi REENGAGE_AFTER_DAYS kundan oshgan va
+    kelgusi faol broni yo'q mijozlarga qaytishga yumshoq eslatma. Anti-spam:
+    last_reengaged_at cooldown. Schedule: kuniga bir marta (kunduzi)."""
+    from django.db.models import Max
+    from apps.accounts.models import User
+
+    today = timezone.localdate()
+    now = timezone.now()
+    visit_cutoff = today - timedelta(days=REENGAGE_AFTER_DAYS)
+    cooldown_cutoff = now - timedelta(days=REENGAGE_COOLDOWN_DAYS)
+
+    candidates = (
+        User.objects.filter(
+            appointments__status=Appointment.Status.COMPLETED,
+            is_blocked=False,
+            telegram_id__isnull=False,
+        )
+        .annotate(last_visit=Max("appointments__date"))
+        .filter(last_visit__lte=visit_cutoff)
+        .distinct()
+    )
+
+    sent = 0
+    for u in candidates:
+        # Anti-spam: yaqinda eslatilgan bo'lsa — o'tkazib yuboramiz
+        if u.last_reengaged_at and u.last_reengaged_at >= cooldown_cutoff:
+            continue
+        # Kelgusi faol broni bo'lsa — eslatma shart emas
+        if u.appointments.filter(
+            status__in=Appointment.ACTIVE_STATUSES, date__gte=today
+        ).exists():
+            continue
+        last_appt = (
+            u.appointments.select_related("shop")
+            .order_by("-date", "-start_time")
+            .first()
+        )
+        shop_name = last_appt.shop.name if last_appt and last_appt.shop_id else None
+        msg = (
+            f"💈 <b>Vaqt keldi!</b>\n\n"
+            f"Oxirgi tashrifingizdan beri bir oz vaqt o'tdi. "
+            f"Yangi navbatga yozilishni xohlaysizmi?"
+            + (f"\n\n📍 <b>{shop_name}</b> sizni kutadi." if shop_name else "")
+            + "\n\nIlovani ochib qulay vaqtni tanlang. ✂️"
+        )
+        notify_user(u, msg, None, "reengagement")
+        u.last_reengaged_at = now
+        u.save(update_fields=["last_reengaged_at"])
+        sent += 1
+
+    if sent:
+        logger.info("send_reengagement_nudges: %d ta mijozga eslatma yuborildi.", sent)
+    return sent
+
+
 def send_cancellation_notice(appointment_id: str):
     """Notify barber when client cancels."""
     try:

@@ -31,10 +31,10 @@ def make_owner(*, phone_verified=True, is_blocked=False, **kw):
 
 def make_client(**kw):
     n = _uniq()
+    kw.setdefault("telegram_id", 900000 + n)
     return User.objects.create(
         username=f"client{n}",
         role=User.Role.CLIENT,
-        telegram_id=900000 + n,
         **kw,
     )
 
@@ -73,6 +73,22 @@ def make_service(shop=None, *, duration=30, price=50000, is_active=True, **kw):
         price=price,
         is_active=is_active,
         **kw,
+    )
+
+
+def make_appointment(*, client=None, barber=None, service=None, shop=None,
+                      date=None, status=None, start=time(10, 0), end=time(10, 30)):
+    from django.utils import timezone
+    from apps.bookings.models import Appointment
+    barber = barber or make_barber()
+    shop = shop or barber.shop
+    service = service or make_service(shop=shop)
+    client = client or make_client()
+    return Appointment.objects.create(
+        client=client, barber=barber, service=service, shop=shop,
+        date=date or timezone.localdate(),
+        start_time=start, end_time=end,
+        status=status or Appointment.Status.COMPLETED,
     )
 
 
