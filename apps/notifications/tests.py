@@ -4,9 +4,11 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.bookings.models import Appointment
+from apps.bookings.models import Appointment, WaitlistEntry
 from apps.notifications.models import NotificationLog
-from apps.notifications.tasks import send_reengagement_nudges, REENGAGE_AFTER_DAYS
+from apps.notifications.tasks import (
+    send_reengagement_nudges, REENGAGE_AFTER_DAYS, notify_waitlist,
+)
 from apps.core.test_utils import make_client, make_barber, make_appointment
 
 
@@ -60,3 +62,44 @@ class ReengagementTests(TestCase):
         c = make_client()
         self._appt(c, self.old, status=Appointment.Status.CANCELLED)
         self.assertEqual(send_reengagement_nudges(), 0)
+
+
+class WaitlistNotifyTests(TestCase):
+    """Joy bo'shaganda navbatdagilarga xabar (notify_waitlist)."""
+
+    def setUp(self):
+        self.barber = make_barber()
+        self.date = timezone.localdate() + timedelta(days=2)
+
+    def _entry(self, *, client=None, notified=False, date=None):
+        return WaitlistEntry.objects.create(
+            client=client or make_client(), barber=self.barber,
+            date=date or self.date, notified=notified,
+        )
+
+    def test_notifies_all_waiting_clients(self):
+        e1 = self._entry()
+        self._entry()
+        sent = notify_waitlist(str(self.barber.id), self.date.isoformat())
+        self.assertEqual(sent, 2)
+        e1.refresh_from_db()
+        self.assertTrue(e1.notified)
+        self.assertTrue(NotificationLog.objects.filter(
+            user=e1.client, notification_type="waitlist_freed").exists())
+
+    def test_skips_already_notified(self):
+        self._entry(notified=True)
+        self.assertEqual(notify_waitlist(str(self.barber.id), self.date.isoformat()), 0)
+
+    def test_skips_past_date(self):
+        past = timezone.localdate() - timedelta(days=1)
+        self._entry(date=past)
+        self.assertEqual(notify_waitlist(str(self.barber.id), past.isoformat()), 0)
+
+    def test_duplicate_entry_blocked(self):
+        from django.db import IntegrityError, transaction
+        c = make_client()
+        self._entry(client=c)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._entry(client=c)

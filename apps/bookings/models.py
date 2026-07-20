@@ -157,3 +157,28 @@ class Review(BaseModel):
 
     def __str__(self):
         return f"{self.client} → {self.barber}: {self.rating}★"
+
+
+class WaitlistEntry(BaseModel):
+    """Mijoz to'lgan kunda barberga navbatga yoziladi — joy bo'shasa xabar oladi."""
+
+    client = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="waitlist_entries",
+    )
+    barber = models.ForeignKey(
+        "shops.BarberProfile", on_delete=models.CASCADE, related_name="waitlist_entries",
+    )
+    date = models.DateField(verbose_name="Sana")
+    #: Joy bo'shab, mijozga taklif yuborilgan bo'lsa True (qayta yubormaslik uchun)
+    notified = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Navbat (waitlist)"
+        verbose_name_plural = "Navbatlar (waitlist)"
+        db_table = "waitlist_entries"
+        ordering = ["created_at"]              # eng erta yozilgan — birinchi xabar oladi
+        unique_together = ("client", "barber", "date")
+        indexes = [models.Index(fields=["barber", "date", "notified"])]
+
+    def __str__(self):
+        return f"{self.client} ⏳ {self.barber} — {self.date}"

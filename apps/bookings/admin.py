@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Appointment, BlockedSlot, Review
+from .models import Appointment, BlockedSlot, Review, WaitlistEntry
 
 
 @admin.register(Review)
@@ -43,3 +43,10 @@ class BlockedSlotAdmin(admin.ModelAdmin):
     list_display = ("barber", "date", "start_time", "end_time", "reason")
     list_filter = ("barber__shop",)
     search_fields = ("barber__user__username",)
+
+
+@admin.register(WaitlistEntry)
+class WaitlistEntryAdmin(admin.ModelAdmin):
+    list_display = ("client", "barber", "date", "notified", "created_at")
+    list_filter = ("notified", "barber__shop", "date")
+    search_fields = ("client__username", "barber__user__username")

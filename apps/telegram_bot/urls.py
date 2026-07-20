@@ -19,6 +19,8 @@ urlpatterns = [
     path("api/bookings/", api_views.booking_create, name="api_booking_create"),
     path("api/my-bookings/", api_views.my_bookings, name="api_my_bookings"),
     path("api/bookings/<uuid:appointment_id>/cancel/", api_views.booking_cancel, name="api_booking_cancel"),
+    path("api/waitlist/join/", api_views.waitlist_join, name="api_waitlist_join"),
+    path("api/waitlist/leave/", api_views.waitlist_leave, name="api_waitlist_leave"),
     path("api/reviews/", api_views.review_create, name="api_review_create"),
     path("api/reports/", api_views.report_create, name="api_report_create"),
 

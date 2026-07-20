@@ -371,9 +371,14 @@ def slots_api(request):
     except ValueError:
         duration = None
     slots = get_available_slots(barber, selected_date, duration=duration)
+    from apps.bookings.models import WaitlistEntry
+    waitlisted = WaitlistEntry.objects.filter(
+        client=request.tg_user, barber=barber, date=selected_date, notified=False
+    ).exists()
     return JsonResponse({
         "slots": [s.strftime("%H:%M") for s in slots],
         "slot_duration": barber.slot_duration,
+        "waitlisted": waitlisted,
     })
 
 
@@ -446,6 +451,12 @@ def booking_create(request):
     from django_q.tasks import async_task
     async_task("apps.notifications.tasks.send_booking_confirmation", str(appt.id))
 
+    # Bron qilindi — shu barber+sana navbatidan chiqarish
+    from apps.bookings.models import WaitlistEntry
+    WaitlistEntry.objects.filter(
+        client=user, barber=barber, date=selected_date
+    ).delete()
+
     return JsonResponse({
         "ok": True,
         "appointment_id": str(appt.id),
@@ -504,8 +515,66 @@ def booking_cancel(request, appointment_id):
 
     from django_q.tasks import async_task
     async_task("apps.notifications.tasks.send_cancellation_notice", str(appt.id))
+    # Joy bo'shadi — shu barber+sana navbatidagilarga taklif
+    async_task(
+        "apps.notifications.tasks.notify_waitlist",
+        str(appt.barber_id), appt.date.isoformat(),
+    )
 
     return JsonResponse({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Waitlist (navbat) — to'lgan kunda joy bo'shasa xabar berish
+# ---------------------------------------------------------------------------
+
+def _waitlist_barber_date(request):
+    """So'rovdan (barber, date) ni oladi yoki (None, xato-javob) qaytaradi."""
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return None, None, _err("JSON kerak")
+    barber = BarberProfile.objects.filter(
+        id=data.get("barber_id"), is_accepting_bookings=True
+    ).first()
+    if not barber:
+        return None, None, _err("Sartarosh topilmadi", status=404)
+    try:
+        d = datetime.strptime(data.get("date") or "", "%Y-%m-%d").date()
+    except ValueError:
+        return None, None, _err("Noto'g'ri sana")
+    if d < date.today():
+        return None, None, _err("O'tgan sanaga navbat bo'lmaydi")
+    return barber, d, None
+
+
+@webapp_api
+@require_POST
+def waitlist_join(request):
+    """Mijozni shu barber+sana navbatiga yozadi (slot to'lgan bo'lsa)."""
+    barber, d, err = _waitlist_barber_date(request)
+    if err:
+        return err
+    from apps.bookings.models import WaitlistEntry
+    WaitlistEntry.objects.get_or_create(
+        client=request.tg_user, barber=barber, date=d,
+        defaults={"notified": False},
+    )
+    return JsonResponse({"ok": True, "waitlisted": True})
+
+
+@webapp_api
+@require_POST
+def waitlist_leave(request):
+    """Mijozni navbatdan chiqaradi."""
+    barber, d, err = _waitlist_barber_date(request)
+    if err:
+        return err
+    from apps.bookings.models import WaitlistEntry
+    WaitlistEntry.objects.filter(
+        client=request.tg_user, barber=barber, date=d
+    ).delete()
+    return JsonResponse({"ok": True, "waitlisted": False})
 
 
 # ---------------------------------------------------------------------------

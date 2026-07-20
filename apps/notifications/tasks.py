@@ -228,6 +228,44 @@ def send_cancellation_notice(appointment_id: str):
     notify_user(appt.barber.user, msg, appt, "cancelled")
 
 
+def notify_waitlist(barber_id, date_iso: str):
+    """Joy bo'shaganda shu barber+sana navbatidagi (hali xabar berilmagan)
+    mijozlarga taklif yuboradi. booking_cancel'dan async_task orqali chaqiriladi.
+    Barchaga yuboriladi — birinchi band qilgan oladi (first-come-first-served)."""
+    from datetime import date as date_cls
+    from apps.bookings.models import WaitlistEntry
+
+    try:
+        d = date_cls.fromisoformat(date_iso)
+    except (ValueError, TypeError):
+        return 0
+    if d < timezone.localdate():          # o'tgan sana — shart emas
+        return 0
+
+    entries = WaitlistEntry.objects.filter(
+        barber_id=barber_id, date=d, notified=False,
+    ).select_related("client", "barber__user", "barber__shop")
+
+    sent = 0
+    for e in entries:
+        b = e.barber
+        msg = (
+            f"🔔 <b>Joy bo'shadi!</b>\n\n"
+            f"💈 {b.user.get_full_name() or b.user.username} — "
+            f"<b>{d.strftime('%d.%m.%Y')}</b> uchun navbatda joy ochildi.\n"
+            f"📍 {b.shop.name}\n\n"
+            f"Tez band qiling — birinchi kelgan bandlaydi! ✂️"
+        )
+        notify_user(e.client, msg, None, "waitlist_freed")
+        e.notified = True
+        e.save(update_fields=["notified"])
+        sent += 1
+
+    if sent:
+        logger.info("notify_waitlist: barber=%s date=%s → %d ta taklif", barber_id, date_iso, sent)
+    return sent
+
+
 def notify_join_request(request_id: str):
     """Salon egasiga yangi qo'shilish so'rovi haqida xabar."""
     from apps.shops.models import ShopJoinRequest
