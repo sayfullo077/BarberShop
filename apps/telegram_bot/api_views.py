@@ -638,6 +638,7 @@ def me(request):
         "role": u.role,
         "phone": u.phone,
         "phone_verified": u.phone_verified,
+        "audience_pref": u.audience_pref,   # null = onboarding hali so'ralmagan
         "is_barber": u.is_barber,
         "is_shop_owner": is_shop_owner,
         "owned_shop": owned_shop,
@@ -651,6 +652,23 @@ def me(request):
             "is_accepting_bookings": u.barber_profile.is_accepting_bookings,
         } if has_barber else None,
     })
+
+
+@csrf_exempt
+@webapp_api
+def set_audience_pref(request):
+    """Mijozning salon turi tanlovini saqlaydi (onboarding + segment sinxroni).
+    Qiymatlar: men / women / all. 'all' = «Barchasi» yoki o'tkazib yuborildi."""
+    if request.method != "POST":
+        return _err("POST kerak", 405)
+    body = json.loads(request.body or b"{}")
+    pref = body.get("audience_pref")
+    if pref not in User.AudiencePref.values:
+        return _err("Noto'g'ri tanlov")
+    u = request.tg_user
+    u.audience_pref = pref
+    u.save(update_fields=["audience_pref"])
+    return JsonResponse({"ok": True, "audience_pref": pref})
 
 
 @csrf_exempt

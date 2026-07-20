@@ -8,7 +8,18 @@ class User(AbstractUser):
         BARBER = "barber", "Sartarosh"
         OWNER = "owner", "Salon egasi"
 
+    class AudiencePref(models.TextChoices):
+        MEN   = "men",   "Erkaklar"
+        WOMEN = "women", "Ayollar"
+        ALL   = "all",   "Barchasi"
+
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.CLIENT)
+    #: Mijozning salon turi tanlovi (onboarding). null = hali so'ralmagan.
+    audience_pref = models.CharField(
+        max_length=10, choices=AudiencePref.choices,
+        null=True, blank=True, default=None,
+        verbose_name="Auditoriya tanlovi",
+    )
     telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     telegram_username = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)

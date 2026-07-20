@@ -69,7 +69,7 @@
 *, *::before, *::after { transition: background-color .25s, color .2s, border-color .2s; }
 
 /* ── Theme Toggle Button ────────────────────────────────── */
-.theme-btn {
+.theme-btn, .icon-btn {
   width: 38px; height: 38px; border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--bg2);
@@ -78,7 +78,7 @@
   transition: background .2s, transform .3s;
   flex-shrink: 0;
 }
-.theme-btn:active { background: var(--bg3); transform: scale(.92); }
+.theme-btn:active, .icon-btn:active { background: var(--bg3); transform: scale(.92); }
 
 /* Salon turi (auditoriya) segment filtri — bosh sahifa + boshqaruv */
 #aud-seg, .seg-select {
@@ -92,11 +92,62 @@
   transition: background .15s, color .15s;
 }
 .aud-btn.active { background: var(--accent); color: var(--on-accent); }
+/* Salon turi filtri — header dropdown menyusi */
+.aud-wrap { position: relative; display: inline-flex; }
+#aud-filter-btn.aud-active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.aud-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+  padding: 6px; min-width: 172px; box-shadow: 0 8px 24px var(--shadow);
+  display: none; flex-direction: column; gap: 2px;
+}
+.aud-menu.open { display: flex; animation: audPop .15s ease; }
+@keyframes audPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.aud-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: transparent; border: 0; border-radius: 10px; padding: 10px 12px;
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--text);
+  cursor: pointer;
+}
+.aud-menu-item span { font-size: 16px; }
+.aud-menu-item:active { background: var(--bg3); }
+.aud-menu-item.active { background: var(--accent); color: var(--on-accent); }
 /* Salon turi chip — karta va detalda */
 .cat-chip {
   display: inline-block; font-size: 10.5px; font-weight: 600;
   padding: 2px 8px; border-radius: 8px; vertical-align: middle;
   background: var(--bg3); color: var(--muted);
+}
+/* Onboarding overlay — birinchi kirish */
+.onb-overlay {
+  position: fixed; inset: 0; z-index: 9999; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.onb-card { width: 100%; max-width: 380px; text-align: center; }
+.onb-emoji { font-size: 52px; margin-bottom: 8px; }
+.onb-title {
+  font-family: var(--font-head); font-size: 26px; font-weight: 700;
+  letter-spacing: -.5px; color: var(--text); margin: 0 0 6px;
+}
+.onb-sub { color: var(--muted); font-size: 14px; margin: 0 0 22px; }
+.onb-opt {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px; margin-bottom: 12px; cursor: pointer;
+  transition: transform .15s, border-color .15s;
+}
+.onb-opt:active { transform: scale(.97); border-color: var(--accent); }
+.onb-ic {
+  font-size: 26px; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px;
+  background: var(--bg3); display: flex; align-items: center; justify-content: center;
+}
+.onb-opt > span:last-child { display: flex; flex-direction: column; }
+.onb-opt b { font-size: 15px; color: var(--text); font-weight: 600; }
+.onb-opt small { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.onb-skip {
+  margin-top: 8px; background: transparent; border: 0; color: var(--muted);
+  font-size: 13.5px; font-weight: 600; padding: 10px; cursor: pointer;
+  font-family: var(--font-body);
 }
 
 html, body {
@@ -1040,6 +1091,14 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 <div class="screen" id="s-shops">
   <div class="topbar">
     <div class="topbar-logo">Barber<span>Shop</span></div>
+    <div class="aud-wrap">
+      <button class="icon-btn" id="aud-filter-btn" onclick="toggleAudMenu(event)" title="Salon turi"><i class="fa-solid fa-venus-mars"></i></button>
+      <div id="aud-menu" class="aud-menu">
+        <button class="aud-menu-item" data-aud="" onclick="setAudience('')"><span>✨</span> Barchasi</button>
+        <button class="aud-menu-item" data-aud="men" onclick="setAudience('men')"><span>👨</span> Erkaklar</button>
+        <button class="aud-menu-item" data-aud="women" onclick="setAudience('women')"><span>👩</span> Ayollar</button>
+      </div>
+    </div>
     <button class="theme-btn" id="theme-btn-main" onclick="toggleTheme()" title="Tema o'zgartirish"><i class="fa-solid fa-moon"></i></button>
     <button class="burger" onclick="openNav()" aria-label="Menyu">
       <span></span><span></span><span></span>
@@ -1049,11 +1108,6 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <button class="btn-primary btn-secondary" style="margin:0;flex:1;padding:11px;font-size:13.5px;" onclick="openMapView()"><i class="fa-solid fa-map-location-dot"></i> Xaritada</button>
       <button class="btn-primary btn-secondary" style="margin:0;flex:1;padding:11px;font-size:13.5px;" onclick="showNearby()"><i class="fa-solid fa-location-crosshairs"></i> Yaqinimda</button>
-    </div>
-    <div id="aud-seg">
-      <button class="aud-btn" data-aud="men" onclick="setAudience('men')">Erkaklar</button>
-      <button class="aud-btn" data-aud="women" onclick="setAudience('women')">Ayollar</button>
-      <button class="aud-btn" data-aud="" onclick="setAudience('')">Barchasi</button>
     </div>
     <div style="position:relative;">
       <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;"></i>
@@ -1509,6 +1563,28 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 
 </div><!-- #app -->
 
+<!-- Onboarding: birinchi kirishда salon turi tanlovi (identity emas — preference) -->
+<div id="onboarding" class="onb-overlay" style="display:none;">
+  <div class="onb-card">
+    <div class="onb-emoji">💈</div>
+    <h2 class="onb-title">Xush kelibsiz!</h2>
+    <p class="onb-sub">Sizga qanaqa salonlarni ko'rsataylik?</p>
+    <button class="onb-opt" onclick="chooseAudience('men')">
+      <span class="onb-ic">👨</span>
+      <span><b>Erkaklar salonlari</b><small>Sartaroshxona, soqol</small></span>
+    </button>
+    <button class="onb-opt" onclick="chooseAudience('women')">
+      <span class="onb-ic">👩</span>
+      <span><b>Go'zallik salonlari</b><small>Ayollar uchun</small></span>
+    </button>
+    <button class="onb-opt" onclick="chooseAudience('all')">
+      <span class="onb-ic">✨</span>
+      <span><b>Ikkalasi ham</b><small>Barcha salonlar</small></span>
+    </button>
+    <button class="onb-skip" onclick="chooseAudience('all')">Keyinroq</button>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════
 // Telegram WebApp Init
@@ -1700,16 +1776,46 @@ function shopCardHtml(s) {
 let audience = localStorage.getItem('audience') || '';   // '' = barchasi
 function audQS(sep) { return audience ? sep + 'audience=' + encodeURIComponent(audience) : ''; }
 function highlightAud() {
-  document.querySelectorAll('.aud-btn').forEach(b =>
+  document.querySelectorAll('.aud-menu-item').forEach(b =>
     b.classList.toggle('active', (b.dataset.aud || '') === audience));
+  const btn = document.getElementById('aud-filter-btn');
+  if (btn) btn.classList.toggle('aud-active', audience !== '');   // tanlangan bo'lsa belgilanadi
 }
+function toggleAudMenu(e) {
+  e.stopPropagation();
+  document.getElementById('aud-menu').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const m = document.getElementById('aud-menu');
+  if (m && m.classList.contains('open') && !e.target.closest('.aud-wrap')) m.classList.remove('open');
+});
 function setAudience(v) {
   audience = v || '';
   localStorage.setItem('audience', audience);
+  document.getElementById('aud-menu')?.classList.remove('open');
   highlightAud();
   try { tg.HapticFeedback.selectionChanged(); } catch(e) {}
+  // Serverga sinxron (qurilmalar aro bir xil bo'lsin) — fire-and-forget
+  POST('/api/audience-pref/', { audience_pref: audience || 'all' }).catch(() => {});
   const q = (document.getElementById('shop-search')?.value || '').trim();
   if (q.length >= 2) runSearch(q); else loadShops();
+}
+
+// Onboarding — birinchi kirishда salon turini tanlash (identity emas, preference)
+function maybeShowOnboarding() {
+  if (userProfile && userProfile.audience_pref == null) {
+    document.getElementById('onboarding').style.display = 'flex';
+  }
+}
+function chooseAudience(pref) {
+  document.getElementById('onboarding').style.display = 'none';
+  try { tg.HapticFeedback.notificationOccurred('success'); } catch(e) {}
+  audience = (pref === 'all') ? '' : pref;
+  localStorage.setItem('audience', audience);
+  highlightAud();
+  if (userProfile) userProfile.audience_pref = pref;
+  POST('/api/audience-pref/', { audience_pref: pref }).catch(() => {});
+  loadShops();
 }
 
 async function loadShops() {
@@ -3434,6 +3540,11 @@ let userProfile = null;
 async function loadUserProfile() {
   try {
     userProfile = await GET('/api/me/');
+    // Server tanlovi mavjud bo'lsa — u asosiy (qurilmalar aro bir xil)
+    if (userProfile.audience_pref != null) {
+      audience = userProfile.audience_pref === 'all' ? '' : userProfile.audience_pref;
+      localStorage.setItem('audience', audience);
+    }
     // Nav menu update
     document.getElementById('nav-barber-item').style.display =
       userProfile.is_barber ? '' : 'none';
@@ -3446,9 +3557,11 @@ async function loadUserProfile() {
 // Bootstrap
 // ══════════════════════════════════════════════════════
 (async () => {
-  await loadShops();
+  // Avval profil — server audience_pref'ini bilib olib, so'ng shu filtr bilan yuklaymiz
   await loadUserProfile();
+  await loadShops();
   first('s-shops');
+  maybeShowOnboarding();   // audience_pref == null bo'lsa onboarding ko'rsatiladi
 })();
 </script>
 </body>

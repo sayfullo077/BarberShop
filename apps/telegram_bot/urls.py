@@ -9,6 +9,7 @@ urlpatterns = [
 
     # Client API
     path("api/me/", api_views.me, name="api_me"),
+    path("api/audience-pref/", api_views.set_audience_pref, name="api_audience_pref"),
     path("api/verify-phone/", api_views.verify_phone, name="api_verify_phone"),
     path("api/shops/", api_views.shops_list, name="api_shops"),
     path("api/search/", api_views.search, name="api_search"),
