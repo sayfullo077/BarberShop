@@ -20,7 +20,7 @@ from apps.accounts.models import User
 from apps.bookings.models import Appointment
 from apps.bookings.services import create_appointment, get_available_slots
 from apps.services.models import Service
-from apps.shops.models import BarberProfile, Shop
+from apps.shops.models import BarberProfile, Shop, Favorite
 
 
 # ---------------------------------------------------------------------------
@@ -126,8 +126,18 @@ def _err(msg: str, status: int = 400) -> JsonResponse:
 # Shops
 # ---------------------------------------------------------------------------
 
-def _shop_card(request, s):
+def _fav_shop_ids(request):
+    """Foydalanuvchi sevimli salonlari id-lari (set) — kartalarda N+1 bo'lmasin."""
+    from apps.shops.models import Favorite
+    return set(
+        Favorite.objects.filter(client=request.tg_user).values_list("shop_id", flat=True)
+    )
+
+
+def _shop_card(request, s, fav_ids=None):
     """Bosh sahifa/qidiruv/xarita kartasi uchun salon ma'lumoti."""
+    if fav_ids is None:
+        fav_ids = _fav_shop_ids(request)
     return {
         "id": str(s.id),
         "name": s.name,
@@ -145,6 +155,7 @@ def _shop_card(request, s):
         "rating_count": s.rating_count,
         "telegram_url": s.telegram_url,
         "instagram_url": s.instagram_url,
+        "is_favorite": s.id in fav_ids,
     }
 
 
@@ -211,7 +222,8 @@ def _apply_audience(qs, audience):
 @require_GET
 def shops_list(request):
     shops = _ranked(_apply_audience(_public_shops_qs(), request.GET.get("audience")))
-    return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
+    fav = _fav_shop_ids(request)
+    return JsonResponse({"shops": [_shop_card(request, s, fav) for s in shops]})
 
 
 @webapp_api
@@ -240,7 +252,8 @@ def search(request):
 
     base = _apply_audience(_public_shops_qs(), request.GET.get("audience"))
     shops = _ranked(base.filter(filt).distinct()[:30])
-    return JsonResponse({"shops": [_shop_card(request, s) for s in shops]})
+    fav = _fav_shop_ids(request)
+    return JsonResponse({"shops": [_shop_card(request, s, fav) for s in shops]})
 
 
 @webapp_api
@@ -256,10 +269,11 @@ def nearby(request):
     shops = _apply_audience(_public_shops_qs(), request.GET.get("audience")).filter(
         latitude__isnull=False, longitude__isnull=False
     )
+    fav = _fav_shop_ids(request)
     items = []
     for s in shops:
         dist = _haversine_km(lat, lng, float(s.latitude), float(s.longitude))
-        card = _shop_card(request, s)
+        card = _shop_card(request, s, fav)
         card["distance_km"] = round(dist, 1)
         items.append((dist, card))
     items.sort(key=lambda x: x[0])
@@ -317,6 +331,7 @@ def shop_detail(request, slug):
         "phone": shop.phone,
         "category": shop.category,
         "category_display": shop.get_category_display(),
+        "is_favorite": Favorite.objects.filter(client=request.tg_user, shop=shop).exists(),
         "rating_avg": round(shop.rating_avg, 1),
         "rating_count": shop.rating_count,
         "reviews": reviews,
@@ -389,6 +404,11 @@ def slots_api(request):
 @webapp_api
 @require_POST
 def booking_create(request):
+    # Qora ro'yxatdagi (ko'p bekor qilgan) mijoz bron qila olmaydi
+    if request.tg_user.is_blocked:
+        return _err("Hisobingiz ko'p bekor qilishlar tufayli cheklangan. "
+                    "Iltimos, salon bilan bog'laning.", status=403)
+
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, TypeError):
@@ -511,7 +531,18 @@ def booking_cancel(request, appointment_id):
     if appt.status not in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED):
         return _err("Bu bronni bekor qilib bo'lmaydi")
 
-    appt.cancel()
+    # Bekor qilish sababi majburiy (barberlarni behuda bezovtalikdan himoya)
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+    reason = (data.get("reason") or "").strip()
+    if not reason:
+        return _err("Bekor qilish sababini ko'rsating")
+
+    appt.cancel_reason = reason[:200]
+    appt.status = Appointment.Status.CANCELLED
+    appt.save(update_fields=["status", "cancel_reason", "updated_at"])
 
     from django_q.tasks import async_task
     async_task("apps.notifications.tasks.send_cancellation_notice", str(appt.id))
@@ -521,7 +552,15 @@ def booking_cancel(request, appointment_id):
         str(appt.barber_id), appt.date.isoformat(),
     )
 
-    return JsonResponse({"ok": True})
+    # Ko'p bekor qilgan mijoz — avtomatik qora ro'yxat (barberlarni himoya)
+    from apps.bookings.services import maybe_block_client
+    cancel_count, blocked_now = maybe_block_client(request.tg_user)
+
+    return JsonResponse({
+        "ok": True,
+        "cancel_count": cancel_count,
+        "blocked": blocked_now,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -575,6 +614,40 @@ def waitlist_leave(request):
         client=request.tg_user, barber=barber, date=d
     ).delete()
     return JsonResponse({"ok": True, "waitlisted": False})
+
+
+# ---------------------------------------------------------------------------
+# Favorites (sevimlilar)
+# ---------------------------------------------------------------------------
+
+@webapp_api
+@require_POST
+def favorite_toggle(request):
+    """Salonni sevimlilarga qo'shadi yoki olib tashlaydi (yurakcha)."""
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return _err("JSON kerak")
+    shop = Shop.objects.filter(slug=data.get("slug"), is_active=True).first()
+    if not shop:
+        return _err("Salon topilmadi", status=404)
+    fav, created = Favorite.objects.get_or_create(client=request.tg_user, shop=shop)
+    if not created:
+        fav.delete()
+    return JsonResponse({"ok": True, "is_favorite": created})
+
+
+@webapp_api
+@require_GET
+def favorites_list(request):
+    """Foydalanuvchining sevimli salonlari (eng yangi birinchi)."""
+    shops = [
+        f.shop for f in Favorite.objects.filter(client=request.tg_user)
+        .select_related("shop").order_by("-created_at")
+        if f.shop.is_active and not f.shop.is_suspended
+    ]
+    fav = {s.id for s in shops}
+    return JsonResponse({"shops": [_shop_card(request, s, fav) for s in shops]})
 
 
 # ---------------------------------------------------------------------------

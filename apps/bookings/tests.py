@@ -11,6 +11,7 @@ from apps.bookings.models import Appointment, BlockedSlot
 from apps.bookings.services import get_available_slots, create_appointment
 from apps.core.test_utils import (
     make_shop, make_barber, make_service, make_client, set_working_hours,
+    make_appointment,
 )
 
 
@@ -143,3 +144,57 @@ class CreateAppointmentTests(TestCase):
                 client=make_client(), barber=self.barber,
                 services=[svc], date=self.day, start_time=time(9, 0),
             )
+
+
+class CancelBlockTests(TestCase):
+    """Ko'p bekor qilgan mijoz avtomatik qora ro'yxatga olinadi (barberlarni himoya)."""
+
+    def setUp(self):
+        from apps.bookings.services import CANCEL_BLOCK_THRESHOLD
+        self.threshold = CANCEL_BLOCK_THRESHOLD
+        self.barber = make_barber()
+        self.client_user = make_client()
+
+    def _cancelled(self, n):
+        for _ in range(n):
+            make_appointment(
+                client=self.client_user, barber=self.barber, shop=self.barber.shop,
+                status=Appointment.Status.CANCELLED,
+            )
+
+    def test_blocks_after_threshold(self):
+        from apps.bookings.services import maybe_block_client
+        self._cancelled(self.threshold)
+        count, blocked = maybe_block_client(self.client_user)
+        self.assertEqual(count, self.threshold)
+        self.assertTrue(blocked)
+        self.client_user.refresh_from_db()
+        self.assertTrue(self.client_user.is_blocked)
+
+    def test_not_blocked_below_threshold(self):
+        from apps.bookings.services import maybe_block_client
+        self._cancelled(self.threshold - 1)
+        count, blocked = maybe_block_client(self.client_user)
+        self.assertFalse(blocked)
+        self.client_user.refresh_from_db()
+        self.assertFalse(self.client_user.is_blocked)
+
+    def test_idempotent_when_already_blocked(self):
+        from apps.bookings.services import maybe_block_client
+        self._cancelled(self.threshold + 2)
+        self.client_user.is_blocked = True
+        self.client_user.save(update_fields=["is_blocked"])
+        count, blocked = maybe_block_client(self.client_user)
+        self.assertFalse(blocked)   # allaqachon bloklangan — qayta bloklamaydi
+
+
+class FavoriteModelTests(TestCase):
+    def test_unique_together(self):
+        from django.db import IntegrityError, transaction
+        from apps.shops.models import Favorite
+        c = make_client()
+        shop = make_shop()
+        Favorite.objects.create(client=c, shop=shop)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Favorite.objects.create(client=c, shop=shop)

@@ -118,6 +118,53 @@
   padding: 2px 8px; border-radius: 8px; vertical-align: middle;
   background: var(--bg3); color: var(--muted);
 }
+/* Ijtimoiy tarmoq + ulashish chiplari — salon detali */
+.soc-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 4px; }
+.soc-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 13px; border-radius: 20px; background: var(--bg3);
+  font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer;
+}
+.soc-chip i { font-size: 15px; }
+.soc-chip:active { transform: scale(.96); }
+.soc-chip.soc-share { background: var(--accent); color: var(--on-accent); }
+.soc-chip.soc-share i { color: var(--on-accent); }
+/* Sevimli (yurakcha) tugmasi — kartada va detalda */
+.fav-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: none; background: var(--bg3); color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; cursor: pointer; transition: transform .15s, color .15s;
+}
+.fav-btn.on { color: #ff3b30; }
+.fav-btn:active { transform: scale(.85); }
+/* Salon detali suzuvchi boshqaruv (yurakcha + shikoyat kebab) */
+.detail-actions {
+  position: absolute; top: 12px; right: 12px; z-index: 20;
+  display: flex; gap: 8px; align-items: flex-start;
+}
+.detail-fab {
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,.45); color: #fff; backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; cursor: pointer; transition: transform .15s;
+}
+.detail-fab.on { color: #ff3b30; }
+.detail-fab:active { transform: scale(.88); }
+.report-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 6px; min-width: 176px; box-shadow: 0 8px 24px var(--shadow);
+  display: none;
+}
+.report-menu.open { display: block; animation: audPop .15s ease; }
+.report-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: transparent; border: 0; border-radius: 9px; padding: 10px 12px;
+  font-family: var(--font-body); font-size: 14px; color: var(--text); cursor: pointer;
+}
+.report-menu-item:active { background: var(--bg3); }
 /* Onboarding overlay — birinchi kirish */
 .onb-overlay {
   position: fixed; inset: 0; z-index: 9999; background: var(--bg);
@@ -1059,6 +1106,12 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
       </div>
     </li>
     <div class="nav-divider"></div>
+    <li class="nav-item">
+      <div class="nav-link" onclick="navGo('favorites')">
+        <i class="fa-regular fa-heart"></i> Sevimlilar
+      </div>
+    </li>
+    <div class="nav-divider"></div>
     <li class="nav-item" id="nav-barber-item" style="display:none;">
       <div class="nav-link" onclick="navGo('barber-dash')">
         <i class="fa-solid fa-scissors"></i> Kabinetim
@@ -1132,6 +1185,15 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 
 <!-- ══════════ SHOP DETAIL ══════════ -->
 <div class="screen" id="s-shop">
+  <div class="detail-actions">
+    <button class="detail-fab" id="detail-fav-btn" onclick="toggleDetailFav()" aria-label="Sevimli"><i class="fa-regular fa-heart"></i></button>
+    <div style="position:relative;">
+      <button class="detail-fab" onclick="toggleReportMenu(event)" aria-label="Menyu"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      <div id="report-menu" class="report-menu">
+        <button class="report-menu-item" onclick="reportFromMenu()"><i class="fa-regular fa-flag"></i> Shikoyat qilish</button>
+      </div>
+    </div>
+  </div>
   <div id="shop-detail-content">
     <div class="loading-wrap"><div class="spinner"></div></div>
   </div>
@@ -1222,6 +1284,17 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
     <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
   </div>
   <div id="my-bookings-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ SEVIMLILAR ══════════ -->
+<div class="screen" id="s-fav">
+  <div class="topbar">
+    <div class="topbar-logo">Sevimlilar</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button><button class="burger" onclick="openNav()"><span></span><span></span><span></span></button>
+  </div>
+  <div id="fav-content">
     <div class="loading-wrap"><div class="spinner"></div></div>
   </div>
 </div>
@@ -1581,7 +1654,6 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
       <span class="onb-ic">✨</span>
       <span><b>Ikkalasi ham</b><small>Barcha salonlar</small></span>
     </button>
-    <button class="onb-skip" onclick="chooseAudience('all')">Keyinroq</button>
   </div>
 </div>
 
@@ -1632,6 +1704,8 @@ function _fallbackCopy(text, done) {
 }
 
 const DEBUG = {{ DEBUG|yesno:"true,false" }};
+const BOT_USERNAME = "{{ BOT_USERNAME|escapejs }}";
+const WEBAPP_URL = "{{ WEBAPP_URL|escapejs }}";
 
 // ══════════════════════════════════════════════════════
 // State
@@ -1748,7 +1822,10 @@ function catChip(cat) {
 function shopCardHtml(s) {
   const loc = (s.city ? esc(s.city) + ', ' : '') + esc(s.address || '');
   return `
-      <div class="shop-card" onclick="openShop('${s.slug}')">
+      <div class="shop-card" style="position:relative;" onclick="openShop('${s.slug}')">
+        <button class="fav-btn ${s.is_favorite ? 'on' : ''}" onclick="event.stopPropagation(); toggleFavorite('${s.slug}', this)" aria-label="Sevimli">
+          <i class="fa-${s.is_favorite ? 'solid' : 'regular'} fa-heart"></i>
+        </button>
         <div class="shop-card-inner">
           <div class="shop-avatar">
             ${s.logo_url ? `<img src="${s.logo_url}" alt="">` : '✂️'}
@@ -1770,6 +1847,39 @@ function shopCardHtml(s) {
             : '<i class="fa-solid fa-chevron-right"></i>'}
         </div>
       </div>`;
+}
+
+// ── Sevimlilar (yurakcha) ─────────────────────────────────
+async function toggleFavorite(slug, btn) {
+  try {
+    const r = await POST('/api/favorites/toggle/', { slug });
+    const on = r.is_favorite;
+    if (btn) {
+      btn.classList.toggle('on', on);
+      const ic = btn.querySelector('i');
+      if (ic) ic.className = `fa-${on ? 'solid' : 'regular'} fa-heart`;
+    }
+    try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
+    if (shopCache && shopCache.slug === slug) shopCache.is_favorite = on;
+    return on;
+  } catch (e) { uiAlert('Xatolik: ' + e.message); }
+}
+
+async function loadFavorites() {
+  const el = document.getElementById('fav-content');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>';
+  try {
+    const { shops } = await GET('/api/favorites/');
+    if (!shops.length) {
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">🤍</div>
+        <div class="empty-title">Sevimlilar bo'sh</div>
+        <div class="empty-sub">Salon sahifasidagi yurakchani bosib qo'shing</div></div>`;
+      return;
+    }
+    el.innerHTML = '<div class="sec-label">Sevimlilar</div>' + shops.map(shopCardHtml).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
 }
 
 // ── Salon turi filtri (auditoriya) — localStorage'da eslab qolinadi ──
@@ -1964,6 +2074,8 @@ async function openShop(slug) {
   try {
     const s = await GET(`/api/shops/${slug}/`);
     shopCache = s;
+    updateDetailFav();
+    document.getElementById('report-menu').classList.remove('open');
     bk.shopSlug = s.slug; bk.shopName = s.name;
     // Har safar salonga kirilganda bron holatini tozalash — aks holda
     // oldingi brondan qolgan xizmat/usta yangi salon bilan aralashib ketadi.
@@ -1997,25 +2109,8 @@ async function openShop(slug) {
           <a href="tel:${(s.phone || '').replace(/[^+\d]/g, '')}" class="info-link info-row-text" style="flex:1;">${esc(s.phone)}</a>
           ${s.phone ? `<i class="fa-solid fa-copy" onclick="copyPhone('${esc(s.phone)}')" style="cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;" title="Nusxalash"></i>` : ''}
         </div>
-        ${[
-          ['instagram_url','fa-instagram','#E1306C'],
-          ['telegram_url','fa-telegram','#229ED9'],
-          ['tiktok_url','fa-tiktok','var(--text)'],
-          ['facebook_url','fa-facebook','#1877F2'],
-          ['youtube_url','fa-youtube','#FF0000'],
-        ].some(x => s[x[0]]) ? `<div class="info-row" style="padding-top:10px;">
-          <i class="fa-solid fa-share-nodes"></i>
-          <div style="display:flex;gap:14px;flex-wrap:wrap;">
-            ${[
-              ['instagram_url','fa-instagram','#E1306C'],
-              ['telegram_url','fa-telegram','#229ED9'],
-              ['tiktok_url','fa-tiktok','var(--text)'],
-              ['facebook_url','fa-facebook','#1877F2'],
-              ['youtube_url','fa-youtube','#FF0000'],
-            ].filter(x => s[x[0]]).map(x => `<a onclick="tgOpen('${s[x[0]]}')" style="cursor:pointer;font-size:22px;color:${x[2]};"><i class="fa-brands ${x[1]}"></i></a>`).join('')}
-          </div>
-        </div>` : ''}
       </div>
+      ${socialRowHtml(s)}
 
       <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 2px;">
         ${s.rating_count > 0
@@ -2054,10 +2149,7 @@ async function openShop(slug) {
             <div style="font-size:11px;color:var(--faint);margin-top:6px;">${rv.date}</div>
           </div>`).join('')}
       </div>` : ''}
-
-      <div style="padding:8px 16px 28px;text-align:center;">
-        <a onclick="reportShop('${s.slug}')" style="color:var(--muted);font-size:12.5px;cursor:pointer;"><i class="fa-regular fa-flag" style="margin-right:5px;"></i>Shikoyat qilish</a>
-      </div>
+      <div style="height:20px;"></div>
     `;
 
     if (s.latitude != null && s.longitude != null) showDetailMap(+s.latitude, +s.longitude);
@@ -2498,15 +2590,42 @@ async function openDetail(id) {
   }
 }
 
-async function cancelBooking(id) {
-  const ok = await new Promise(r => uiConfirm('Bronni bekor qilmoqchimisiz?', r));
-  if (!ok) return;
+function cancelBooking(id) {
+  const reasons = [
+    'Rejam o‘zgardi',
+    'Boshqa vaqt / salon topdim',
+    'Xizmat kerak emas',
+    'Xato bron qildim',
+    'Boshqa sabab',
+  ];
+  const ov = document.createElement('div');
+  ov.dataset.cancelSheet = '1';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:var(--bg);width:100%;border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));">
+    <div style="font-weight:600;font-size:16px;margin-bottom:4px;">Bekor qilish sababi</div>
+    <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;line-height:1.4;">Sababsiz tez-tez bekor qilish hisobingizni cheklashi mumkin.</div>
+    ${reasons.map(r => `<button class="btn-primary btn-secondary" style="margin:0 0 8px;justify-content:flex-start;" onclick="submitCancel('${id}', this)">${r}</button>`).join('')}
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+async function submitCancel(id, btn) {
+  const reason = btn.textContent.trim();
+  const sheet = document.querySelector('[data-cancel-sheet]');
   try {
-    await POST(`/api/bookings/${id}/cancel/`, {});
+    const r = await POST(`/api/bookings/${id}/cancel/`, { reason });
+    if (sheet) sheet.remove();
     tg.HapticFeedback.notificationOccurred('success');
+    if (r.blocked) {
+      uiAlert('Hisobingiz ko‘p bekor qilishlar tufayli cheklandi. Iltimos, salon bilan bog‘laning.');
+    } else if (r.cancel_count === 2) {
+      uiAlert('Diqqat: yana bir marta bekor qilsangiz hisobingiz cheklanadi.');
+    }
     goBack();
     loadMyBookings();
-  } catch(e) {
+  } catch (e) {
+    if (sheet) sheet.remove();
     uiAlert('Xatolik: ' + e.message);
     tg.HapticFeedback.notificationOccurred('error');
   }
@@ -2579,6 +2698,9 @@ function navGo(target) {
       first('s-shops');
     } else if (target === 'my-bookings') {
       loadMyBookings();
+    } else if (target === 'favorites') {
+      goTo('s-fav');
+      loadFavorites();
     } else if (target === 'barber-dash') {
       loadBarberDash();
     } else if (target === 'become-barber') {
@@ -2804,6 +2926,65 @@ function tgOpen(url) {
   if (!url) return;
   try { tg.openLink(url); } catch (e) { window.open(url, '_blank'); }
 }
+
+// ── Ijtimoiy tarmoqlar + ulashish (salon detali) ──────────
+function socialRowHtml(s) {
+  const nets = [
+    ['telegram_url', 'fa-telegram', 'Telegram', '#229ED9'],
+    ['instagram_url', 'fa-instagram', 'Instagram', '#E1306C'],
+    ['tiktok_url', 'fa-tiktok', 'TikTok', 'var(--text)'],
+    ['facebook_url', 'fa-facebook', 'Facebook', '#1877F2'],
+    ['youtube_url', 'fa-youtube', 'YouTube', '#FF0000'],
+  ].filter(x => s[x[0]]);
+  const chips = nets.map(x =>
+    `<a class="soc-chip" onclick="tgOpen('${s[x[0]]}')"><i class="fa-brands ${x[1]}" style="color:${x[3]};"></i><span>${x[2]}</span></a>`
+  );
+  // Har doim «Ulashish» — mijoz salonni do'stlariga tavsiya qilsin
+  chips.push(`<a class="soc-chip soc-share" onclick="shareShop('${s.slug}')"><i class="fa-solid fa-share-nodes"></i><span>Ulashish</span></a>`);
+  return `<div class="soc-row">${chips.join('')}</div>`;
+}
+
+function shopShareLink(slug) {
+  // Bot username bo'lsa — mini-ilova deep-link (aynan shu salonni ochadi)
+  if (BOT_USERNAME) return `https://t.me/${BOT_USERNAME}?startapp=shop__${slug}`;
+  return WEBAPP_URL || (location.origin + '/');
+}
+function shareShop(slug) {
+  const name = (shopCache && shopCache.name) || 'Salon';
+  const link = shopShareLink(slug);
+  const text = `${name} — bu salonni tavsiya qilaman! BarberShop'da bron qiling ✂️`;
+  const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(text);
+  try { tg.openTelegramLink(shareUrl); return; } catch (e) {}
+  try { if (navigator.share) { navigator.share({ title: name, text, url: link }); return; } } catch (e) {}
+  copyPhone(link); uiAlert('Havola nusxalandi — do\'stlaringizga yuboring');
+}
+
+// ── Salon detali: yurakcha + shikoyat kebab ───────────────
+function updateDetailFav() {
+  const btn = document.getElementById('detail-fav-btn');
+  if (!btn || !shopCache) return;
+  const on = !!shopCache.is_favorite;
+  btn.classList.toggle('on', on);
+  btn.querySelector('i').className = `fa-${on ? 'solid' : 'regular'} fa-heart`;
+}
+function toggleDetailFav() {
+  if (!shopCache) return;
+  toggleFavorite(shopCache.slug, document.getElementById('detail-fav-btn'));
+}
+function toggleReportMenu(e) {
+  e.stopPropagation();
+  document.getElementById('report-menu').classList.toggle('open');
+}
+function reportFromMenu() {
+  document.getElementById('report-menu').classList.remove('open');
+  if (shopCache) reportShop(shopCache.slug);
+}
+document.addEventListener('click', (e) => {
+  const m = document.getElementById('report-menu');
+  if (m && m.classList.contains('open') && !e.target.closest('.detail-actions')) {
+    m.classList.remove('open');
+  }
+});
 
 // ── Shikoyat ──────────────────────────────────────────────
 function reportShop(slug) {
@@ -3585,6 +3766,15 @@ async function loadUserProfile() {
   await loadShops();
   first('s-shops');
   maybeShowOnboarding();   // audience_pref == null bo'lsa onboarding ko'rsatiladi
+
+  // Ulashilgan havola: ?startapp=shop__<slug> — o'sha salonni ochamiz
+  try {
+    const sp = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+    if (sp && sp.indexOf('shop__') === 0) {
+      const slug = sp.slice(6);
+      if (slug) openShop(slug);
+    }
+  } catch (e) {}
 })();
 </script>
 </body>

@@ -150,6 +150,9 @@ TELEGRAM_WEBHOOK_URL = config("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
 # Mini-ilova (WebApp) manzili — bo'sh bo'lsa webhook origin'idan olinadi
 TELEGRAM_WEBAPP_URL = config("TELEGRAM_WEBAPP_URL", default="")
+# Bot username (@ siz) — salonni ulashish (deep-link) uchun. Bo'sh bo'lsa
+# ulashish WEBAPP_URL ga qaytadi.
+TELEGRAM_BOT_USERNAME = config("TELEGRAM_BOT_USERNAME", default="")
 
 # SMS (Eskiz.uz)
 ESKIZ_EMAIL = config("ESKIZ_EMAIL", default="")

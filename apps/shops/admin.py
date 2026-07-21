@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Shop, WorkingHours, BarberProfile, Report
+from .models import Shop, WorkingHours, BarberProfile, Report, Favorite
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ("client", "shop", "created_at")
+    search_fields = ("client__username", "shop__name")
 
 
 class WorkingHoursInline(admin.TabularInline):

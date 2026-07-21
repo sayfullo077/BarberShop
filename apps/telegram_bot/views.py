@@ -57,5 +57,7 @@ def webapp_index(request):
     """Serve the Telegram WebApp SPA."""
     return render(request, "telegram/webapp.html", {
         "BOT_TOKEN": settings.TELEGRAM_BOT_TOKEN,
+        "BOT_USERNAME": settings.TELEGRAM_BOT_USERNAME,
+        "WEBAPP_URL": settings.TELEGRAM_WEBAPP_URL,
         "DEBUG": settings.DEBUG,
     })

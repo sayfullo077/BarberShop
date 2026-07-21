@@ -86,3 +86,22 @@ def create_appointment(*, client, barber, services, date, start_time) -> Appoint
     )
     appointment.services.set(services)
     return appointment
+
+
+#: Shu ko'p bekor qilishdan so'ng mijoz avtomatik bloklanadi (barberlarni himoya)
+CANCEL_BLOCK_THRESHOLD = 3
+
+
+def maybe_block_client(user):
+    """Mijozning bekor qilingan bronlari sonini sanaydi; chegaradan (3) oshsa
+    va hali bloklanmagan bo'lsa — avtomatik qora ro'yxatga oladi.
+    (cancel_count, blocked_now) qaytaradi."""
+    count = Appointment.objects.filter(
+        client=user, status=Appointment.Status.CANCELLED
+    ).count()
+    blocked_now = False
+    if count >= CANCEL_BLOCK_THRESHOLD and not user.is_blocked:
+        user.is_blocked = True
+        user.save(update_fields=["is_blocked"])
+        blocked_now = True
+    return count, blocked_now

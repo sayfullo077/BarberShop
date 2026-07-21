@@ -215,3 +215,23 @@ class Report(BaseModel):
 
     def __str__(self):
         return f"{self.reporter} → {self.shop}: {self.reason}"
+
+
+class Favorite(BaseModel):
+    """Mijozning sevimli saloni — keyingi safar tez topib bron qilishi uchun."""
+
+    client = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="favorites",
+    )
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="favorited_by")
+
+    class Meta:
+        verbose_name = "Sevimli"
+        verbose_name_plural = "Sevimlilar"
+        db_table = "favorites"
+        ordering = ["-created_at"]
+        unique_together = ("client", "shop")
+        indexes = [models.Index(fields=["client", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.client} ❤ {self.shop}"

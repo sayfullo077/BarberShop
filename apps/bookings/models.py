@@ -52,6 +52,7 @@ class Appointment(BaseModel):
     )
     client_note = models.TextField(blank=True, verbose_name="Mijoz izohi")
     barber_note = models.TextField(blank=True, verbose_name="Sartarosh izohi")
+    cancel_reason = models.CharField(max_length=200, blank=True, verbose_name="Bekor qilish sababi")
     reminded_5m = models.BooleanField(default=False)
     reminded_1h = models.BooleanField(default=False)
     reminded_24h = models.BooleanField(default=False)
