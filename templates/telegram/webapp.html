@@ -2110,22 +2110,7 @@ async function openShop(slug) {
           ${s.phone ? `<i class="fa-solid fa-copy" onclick="copyPhone('${esc(s.phone)}')" style="cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;" title="Nusxalash"></i>` : ''}
         </div>
       </div>
-      ${socialRowHtml(s)}
-
-      <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 2px;">
-        ${s.rating_count > 0
-          ? `<span style="font-size:20px;font-weight:700;">${s.rating_avg}</span>
-             <span style="color:#f5a623;font-size:15px;letter-spacing:1px;">${'★'.repeat(Math.round(s.rating_avg))}<span style="color:var(--bg3);">${'★'.repeat(5 - Math.round(s.rating_avg))}</span></span>
-             <span style="color:var(--muted);font-size:13px;">${s.rating_count} ta baho</span>`
-          : `<span style="color:var(--muted);font-size:13px;"><i class="fa-regular fa-star"></i> Hali baholanmagan</span>`}
-      </div>
-
-      ${(s.latitude != null && s.longitude != null) ? `
-      <div style="margin:10px 16px;">
-        <div id="shop-detail-map" style="height:180px;border-radius:16px;overflow:hidden;border:1px solid var(--border);"></div>
-        <button class="btn-primary btn-secondary" style="margin-top:8px;font-size:13.5px;padding:12px;" onclick="openMapsNav(${s.latitude},${s.longitude})"><i class="fa-solid fa-diamond-turn-right"></i> Yo'l ko'rsatish</button>
-      </div>` : ''}
-
+      <!-- 1) Eng muhim: xizmat / usta / ish vaqti -->
       <div class="tabs" id="shop-tabs">
         <div class="tab active" onclick="shopTab('services',this)">Xizmatlar (${s.services.length})</div>
         <div class="tab" onclick="shopTab('barbers',this)">Ustalar (${s.barbers.length})</div>
@@ -2136,9 +2121,18 @@ async function openShop(slug) {
       <div id="tab-barbers" style="display:none;">${renderBarbers(s.barbers)}</div>
       <div id="tab-hours" style="display:none;">${renderHours(s.working_hours)}</div>
 
+      <!-- 2) Baholash -->
+      <div class="sec-label">Baholash</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 16px 4px;">
+        ${s.rating_count > 0
+          ? `<span style="font-size:20px;font-weight:700;">${s.rating_avg}</span>
+             <span style="color:#f5a623;font-size:15px;letter-spacing:1px;">${'★'.repeat(Math.round(s.rating_avg))}<span style="color:var(--bg3);">${'★'.repeat(5 - Math.round(s.rating_avg))}</span></span>
+             <span style="color:var(--muted);font-size:13px;">${s.rating_count} ta baho</span>`
+          : `<span style="color:var(--muted);font-size:13px;"><i class="fa-regular fa-star"></i> Hali baholanmagan</span>`}
+      </div>
+
       ${s.reviews && s.reviews.length ? `
-      <div class="sec-label">Sharhlar <span style="color:var(--muted);font-weight:400;">(${s.rating_count})</span></div>
-      <div style="padding:0 16px 20px;">
+      <div style="padding:6px 16px 8px;">
         ${s.reviews.map(rv => `
           <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 2px var(--shadow);">
             <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2149,6 +2143,17 @@ async function openShop(slug) {
             <div style="font-size:11px;color:var(--faint);margin-top:6px;">${rv.date}</div>
           </div>`).join('')}
       </div>` : ''}
+
+      <!-- 3) Xarita / yo'l -->
+      ${(s.latitude != null && s.longitude != null) ? `
+      <div class="sec-label">Manzil</div>
+      <div style="margin:2px 16px 6px;">
+        <div id="shop-detail-map" style="height:180px;border-radius:16px;overflow:hidden;border:1px solid var(--border);"></div>
+        <button class="btn-primary btn-secondary" style="margin-top:8px;font-size:13.5px;padding:12px;" onclick="openMapsNav(${s.latitude},${s.longitude})"><i class="fa-solid fa-diamond-turn-right"></i> Yo'l ko'rsatish</button>
+      </div>` : ''}
+
+      <!-- 4) Ijtimoiy tarmoqlar + ulashish -->
+      ${socialRowHtml(s)}
       <div style="height:20px;"></div>
     `;
 
