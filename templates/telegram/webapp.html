@@ -192,6 +192,40 @@
 .bn-item i { font-size: 17px; }
 .bn-item:active { transform: scale(.9); }
 .bn-item.active { color: var(--accent); background: var(--bg3); }
+/* ── Sozlamalar ekrani ──────────────────────────────────── */
+.set-wrap { padding: 8px 16px 28px; }
+.set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 8px;
+  font-family: var(--font-body); font-size: 14.5px; color: var(--text);
+  cursor: pointer; text-align: left;
+}
+.set-row:active { background: var(--bg3); }
+.set-row > span i { margin-right: 10px; color: var(--muted); width: 18px; text-align: center; }
+.set-row > i { color: var(--muted); font-size: 12px; }
+.set-acc {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 14px; margin-bottom: 8px; overflow: hidden;
+}
+.set-acc summary {
+  list-style: none; cursor: pointer; padding: 14px 16px;
+  font-size: 14.5px; font-weight: 500; color: var(--text);
+  display: flex; align-items: center; gap: 10px;
+}
+.set-acc summary::-webkit-details-marker { display: none; }
+.set-acc summary i { color: var(--muted); width: 18px; text-align: center; }
+.set-acc summary::after {
+  content: '\f078'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+  margin-left: auto; color: var(--muted); font-size: 11px; transition: transform .2s;
+}
+.set-acc[open] summary::after { transform: rotate(180deg); }
+.set-acc[open] summary { border-bottom: 1px solid var(--border); }
+.set-acc-body { padding: 12px 16px 16px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+.set-acc-body b { color: var(--text); }
+.set-faq-q { color: var(--text); font-weight: 600; margin-top: 12px; }
+.set-faq-q:first-child { margin-top: 0; }
+.set-version { text-align: center; color: var(--muted); opacity: .7; font-size: 12px; padding: 18px 0 8px; }
 /* ── Splash (ochilish — Lottie animatsiya) ──────────────── */
 #splash {
   position: fixed; inset: 0; z-index: 9999;
@@ -1021,10 +1055,11 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 
 /* ── Burger Button ──────────────────────────────────────── */
 .burger {
+  display: none !important;   /* hamburger olib tashlandi — navigatsiya pastki menyuda */
   width: 38px; height: 38px; border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--bg2);
-  display: flex; align-items: center; justify-content: center;
+  align-items: center; justify-content: center;
   cursor: pointer; flex-direction: column; gap: 5px;
   padding: 10px; transition: .2s; flex-shrink:0;
 }
@@ -1139,7 +1174,7 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   <button class="bn-item" data-tab="favorites" onclick="bottomNavGo('favorites')"><i class="fa-solid fa-heart"></i><span>Sevimli</span></button>
   <button class="bn-item" data-tab="my-bookings" onclick="bottomNavGo('my-bookings')"><i class="fa-solid fa-calendar-check"></i><span>Bronlar</span></button>
   <button class="bn-item" id="bn-barber" data-tab="barber-dash" onclick="bottomNavGo('barber-dash')" style="display:none;"><i class="fa-solid fa-scissors"></i><span>Kabinet</span></button>
-  <button class="bn-item" data-tab="menu" onclick="openNav()"><i class="fa-solid fa-bars"></i><span>Menyu</span></button>
+  <button class="bn-item" data-tab="settings" onclick="bottomNavGo('settings')"><i class="fa-solid fa-gear"></i><span>Sozlamalar</span></button>
 </nav>
 
 <div id="nav-backdrop" onclick="closeNav()"></div>
@@ -1199,18 +1234,7 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 <div class="screen" id="s-shops">
   <div class="topbar">
     <div class="topbar-logo">Barber<span>Shop</span></div>
-    <div class="aud-wrap">
-      <button class="icon-btn" id="aud-filter-btn" onclick="toggleAudMenu(event)" title="Salon turi"><i class="fa-solid fa-venus-mars"></i></button>
-      <div id="aud-menu" class="aud-menu">
-        <button class="aud-menu-item" data-aud="" onclick="setAudience('')"><span>✨</span> Barchasi</button>
-        <button class="aud-menu-item" data-aud="men" onclick="setAudience('men')"><span>👨</span> Erkaklar</button>
-        <button class="aud-menu-item" data-aud="women" onclick="setAudience('women')"><span>👩</span> Ayollar</button>
-      </div>
-    </div>
     <button class="theme-btn" id="theme-btn-main" onclick="toggleTheme()" title="Tema o'zgartirish"><i class="fa-solid fa-moon"></i></button>
-    <button class="burger" onclick="openNav()" aria-label="Menyu">
-      <span></span><span></span><span></span>
-    </button>
   </div>
   <div style="padding:12px 16px 2px;">
     <div style="display:flex;gap:8px;margin-bottom:8px;">
@@ -1351,6 +1375,78 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   </div>
   <div id="fav-content">
     <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ SOZLAMALAR ══════════ -->
+<div class="screen" id="s-settings">
+  <div class="topbar">
+    <div class="topbar-logo">Sozlamalar</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+  </div>
+  <div class="set-wrap">
+    <div class="sec-label">Salon turi (filtr)</div>
+    <div class="seg-select" id="set-audience-seg">
+      <button class="aud-btn" data-v="men" onclick="setAudience('men')">Erkaklar</button>
+      <button class="aud-btn" data-v="women" onclick="setAudience('women')">Ayollar</button>
+      <button class="aud-btn" data-v="" onclick="setAudience('')">Barchasi</button>
+    </div>
+
+    <div class="sec-label">Ko'rinish</div>
+    <button class="set-row" onclick="toggleTheme()">
+      <span><i class="fa-solid fa-circle-half-stroke"></i> Kunduzgi / tungi rejim</span>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+    <button class="set-row" id="set-become-barber" onclick="navGo('become-barber')" style="display:none;">
+      <span style="color:var(--accent);font-weight:600;"><i class="fa-solid fa-scissors"></i> Barber bo'lish</span>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+
+    <div class="sec-label">Ma'lumot va yordam</div>
+    <details class="set-acc">
+      <summary><i class="fa-solid fa-circle-info"></i> Ilova haqida</summary>
+      <div class="set-acc-body">
+        <b>BarberShop</b> — sartaroshxona va go'zallik salonlari uchun onlayn bron platformasi.
+        Telegram orqali ro'yxatdan o'tmasdan salon tanlaysiz, usta va qulay vaqtni band qilasiz.
+        Salonlar tasdiqlangan telefon, baho va joylashuv bilan ko'rsatiladi. Sartaroshlar o'z
+        kabineti, xizmatlari va bronlarini boshqaradi.
+      </div>
+    </details>
+    <details class="set-acc">
+      <summary><i class="fa-regular fa-circle-question"></i> Ko'p beriladigan savollar</summary>
+      <div class="set-acc-body">
+        <div class="set-faq-q">Qanday bron qilaman?</div>
+        Salon → xizmat(lar) → usta → sana → bo'sh vaqt → telefon → tasdiqlash.
+        <div class="set-faq-q">Bronni bekor qilsam bo'ladimi?</div>
+        Ha, «Bronlarim»dan sabab ko'rsatib bekor qilasiz. Lekin sababsiz ko'p (3 martadan ortiq)
+        bekor qilish hisobingizni cheklashi mumkin.
+        <div class="set-faq-q">To'lov qanday?</div>
+        Hozircha to'lov salonda, joyida amalga oshiriladi. Ilova faqat bron uchun.
+        <div class="set-faq-q">Eslatma keladimi?</div>
+        Ha — navbatdan 24 soat, 1 soat va 5 daqiqa oldin Telegram orqali eslatma yuboriladi.
+        <div class="set-faq-q">Sevimlilar nima?</div>
+        Yoqtirgan salonni yurakcha bilan saqlab, keyingi safar tez topib bron qilasiz.
+        <div class="set-faq-q">Barber sifatida qanday qo'shilaman?</div>
+        Sozlamalar → «Barber bo'lish» → salon, xizmatlar va telefon tasdig'idan o'ting.
+      </div>
+    </details>
+    <details class="set-acc">
+      <summary><i class="fa-solid fa-book-open"></i> Qo'llanma</summary>
+      <div class="set-acc-body">
+        <b>1.</b> «Bosh»dan salon tanlang yoki qidiring / xaritadan toping.<br>
+        <b>2.</b> Kerakli xizmat(lar)ni va ustani tanlang.<br>
+        <b>3.</b> Sana va bo'sh vaqtni belgilang.<br>
+        <b>4.</b> Telefon raqamingizni kiriting va tasdiqlang.<br>
+        <b>5.</b> Telegram'da tasdiq va eslatmalarni oling.<br>
+        <b>6.</b> «Bronlarim»da kuzatib boring; kerak bo'lsa bekor qiling.
+      </div>
+    </details>
+    <button class="set-row" onclick="navGo('support')">
+      <span><i class="fa-regular fa-paper-plane"></i> Yordam / Murojaat</span>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+
+    <div class="set-version">BarberShop · v1.0</div>
   </div>
 </div>
 
@@ -1829,6 +1925,7 @@ function updateNav() {
 const ROOT_TABS = {
   's-shops': 'shops', 's-fav': 'favorites',
   's-my-bookings': 'my-bookings', 's-barber-dash': 'barber-dash',
+  's-settings': 'settings',
 };
 function updateBottomNav() {
   const bar = document.getElementById('bottom-nav');
@@ -1849,6 +1946,12 @@ function bottomNavGo(tab) {
   else if (tab === 'favorites') { first('s-fav'); loadFavorites(); }
   else if (tab === 'my-bookings') { first('s-my-bookings'); loadMyBookings(); }
   else if (tab === 'barber-dash') { first('s-barber-dash'); loadBarberDash(); }
+  else if (tab === 'settings') { first('s-settings'); renderSettings(); }
+}
+function renderSettings() {
+  highlightAud();   // auditoriya segmentining faol holatini o'rnatadi
+  const bb = document.getElementById('set-become-barber');
+  if (bb) bb.style.display = (userProfile && userProfile.is_barber) ? 'none' : '';
 }
 
 tg.BackButton.onClick(goBack);
@@ -1968,23 +2071,13 @@ async function loadFavorites() {
 let audience = localStorage.getItem('audience') || '';   // '' = barchasi
 function audQS(sep) { return audience ? sep + 'audience=' + encodeURIComponent(audience) : ''; }
 function highlightAud() {
-  document.querySelectorAll('.aud-menu-item').forEach(b =>
-    b.classList.toggle('active', (b.dataset.aud || '') === audience));
-  const btn = document.getElementById('aud-filter-btn');
-  if (btn) btn.classList.toggle('aud-active', audience !== '');   // tanlangan bo'lsa belgilanadi
+  // Auditoriya endi Sozlamalar ekranidagi segmentdan boshqariladi
+  document.querySelectorAll('#set-audience-seg .aud-btn').forEach(b =>
+    b.classList.toggle('active', (b.dataset.v || '') === audience));
 }
-function toggleAudMenu(e) {
-  e.stopPropagation();
-  document.getElementById('aud-menu').classList.toggle('open');
-}
-document.addEventListener('click', (e) => {
-  const m = document.getElementById('aud-menu');
-  if (m && m.classList.contains('open') && !e.target.closest('.aud-wrap')) m.classList.remove('open');
-});
 function setAudience(v) {
   audience = v || '';
   localStorage.setItem('audience', audience);
-  document.getElementById('aud-menu')?.classList.remove('open');
   highlightAud();
   try { tg.HapticFeedback.selectionChanged(); } catch(e) {}
   // Serverga sinxron (qurilmalar aro bir xil bo'lsin) — fire-and-forget
