@@ -10,6 +10,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Splash Lottie animatsiya (Telegram stiker formati) + .tgs (gzip) uchun pako -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <style>
 /* ── Reset ─────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -165,6 +168,44 @@
   font-family: var(--font-body); font-size: 14px; color: var(--text); cursor: pointer;
 }
 .report-menu-item:active { background: var(--bg3); }
+/* ── Pastki tab menyu (suzuvchi pill, Apple Clean Light) ── */
+#bottom-nav {
+  position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(150%);
+  z-index: 120; display: flex; gap: 2px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 26px; padding: 6px;
+  box-shadow: 0 6px 28px rgba(0,0,0,.16);
+  max-width: calc(100vw - 20px);
+  transition: transform .35s cubic-bezier(.2,.9,.3,1), opacity .3s ease;
+  opacity: 0; pointer-events: none;
+}
+#bottom-nav.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+.bn-item {
+  border: 0; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  min-width: 56px; padding: 8px 10px; border-radius: 20px;
+  color: var(--muted); font-family: var(--font-body);
+  font-size: 10px; font-weight: 600; letter-spacing: -.2px;
+  transition: color .15s, background .15s, transform .12s;
+}
+.bn-item i { font-size: 17px; }
+.bn-item:active { transform: scale(.9); }
+.bn-item.active { color: var(--accent); background: var(--bg3); }
+/* ── Splash (ochilish — Lottie animatsiya) ──────────────── */
+#splash {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg); overflow: hidden;
+  transition: opacity .5s ease, visibility .5s ease;
+}
+#splash.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+.sp-lottie {
+  width: min(64vw, 260px); height: min(64vw, 260px);
+  animation: spPop .5s cubic-bezier(.2,.9,.3,1.2) both;
+}
+@keyframes spPop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+
 /* Onboarding overlay — birinchi kirish */
 .onb-overlay {
   position: fixed; inset: 0; z-index: 9999; background: var(--bg);
@@ -1081,11 +1122,25 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 </head>
 <body>
 
+<!-- ══════════ SPLASH (ochilish — Lottie animatsiya) ══════════ -->
+<div id="splash" onclick="dismissSplash()">
+  <div id="splash-lottie" class="sp-lottie"></div>
+</div>
+
 <!-- ══════════ NAV BACKDROP + DRAWER (body darajasida) ══════════ -->
 <!-- Global back button (fixed, outside #app) -->
 <button id="global-back-btn" onclick="goBack()">
   <i class="fa-solid fa-arrow-left"></i>
 </button>
+
+<!-- ══════════ PASTKI TAB MENYU (suzuvchi) ══════════ -->
+<nav id="bottom-nav">
+  <button class="bn-item" data-tab="shops" onclick="bottomNavGo('shops')"><i class="fa-solid fa-house"></i><span>Bosh</span></button>
+  <button class="bn-item" data-tab="favorites" onclick="bottomNavGo('favorites')"><i class="fa-solid fa-heart"></i><span>Sevimli</span></button>
+  <button class="bn-item" data-tab="my-bookings" onclick="bottomNavGo('my-bookings')"><i class="fa-solid fa-calendar-check"></i><span>Bronlar</span></button>
+  <button class="bn-item" id="bn-barber" data-tab="barber-dash" onclick="bottomNavGo('barber-dash')" style="display:none;"><i class="fa-solid fa-scissors"></i><span>Kabinet</span></button>
+  <button class="bn-item" data-tab="menu" onclick="openNav()"><i class="fa-solid fa-bars"></i><span>Menyu</span></button>
+</nav>
 
 <div id="nav-backdrop" onclick="closeNav()"></div>
 <div id="nav-overlay">
@@ -1767,6 +1822,33 @@ function updateNav() {
   const backBtn = document.getElementById('global-back-btn');
   if (backBtn) backBtn.classList.toggle('show', hasBack);
   document.body.classList.toggle('has-back', hasBack);
+  updateBottomNav();
+}
+
+// ── Pastki tab menyu ──────────────────────────────────────
+const ROOT_TABS = {
+  's-shops': 'shops', 's-fav': 'favorites',
+  's-my-bookings': 'my-bookings', 's-barber-dash': 'barber-dash',
+};
+function updateBottomNav() {
+  const bar = document.getElementById('bottom-nav');
+  if (!bar) return;
+  const id = screenStack[screenStack.length - 1];
+  const tab = ROOT_TABS[id];                 // faqat asosiy (root) ekranlarda ko'rinadi
+  bar.classList.toggle('show', !!tab);
+  if (tab) bar.querySelectorAll('.bn-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+}
+function bottomNavGo(tab) {
+  closeNav();
+  if (tab === 'menu') { openNav(); return; }
+  try { tg.HapticFeedback.selectionChanged(); } catch (e) {}
+  // first() har doim stack'ni [id] ga o'rnatadi (tab almashinuvi tarixni tozalaydi);
+  // loader'lardagi goTo(id) esa aynan shu ekranda bo'lgani uchun erta qaytadi (dublsiz).
+  if (tab === 'shops') first('s-shops');
+  else if (tab === 'favorites') { first('s-fav'); loadFavorites(); }
+  else if (tab === 'my-bookings') { first('s-my-bookings'); loadMyBookings(); }
+  else if (tab === 'barber-dash') { first('s-barber-dash'); loadBarberDash(); }
 }
 
 tg.BackButton.onClick(goBack);
@@ -3759,28 +3841,73 @@ async function loadUserProfile() {
       userProfile.is_barber ? '' : 'none';
     document.getElementById('nav-become-barber').style.display =
       userProfile.is_barber ? 'none' : '';
+    // Pastki menyu: «Kabinet» tabi faqat barberlarga
+    const bnBarber = document.getElementById('bn-barber');
+    if (bnBarber) bnBarber.style.display = userProfile.is_barber ? '' : 'none';
   } catch(e) { /* ignore */ }
 }
 
 // ══════════════════════════════════════════════════════
 // Bootstrap
 // ══════════════════════════════════════════════════════
+// Splash tugagach: onboarding + ulashilgan havola (bir marta)
+let _afterSplashDone = false;
+function runAfterSplash() {
+  if (_afterSplashDone) return;
+  _afterSplashDone = true;
+  maybeShowOnboarding();   // audience_pref == null bo'lsa onboarding ko'rsatiladi
+  // Ulashilgan havola: ?startapp=shop__<slug> — o'sha salonni ochamiz
+  try {
+    const p = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+    if (p && p.indexOf('shop__') === 0) {
+      const slug = p.slice(6);
+      if (slug) openShop(slug);
+    }
+  } catch (e) {}
+}
+function dismissSplash() {
+  const sp = document.getElementById('splash');
+  if (!sp || sp.dataset.gone) return;
+  sp.dataset.gone = '1';
+  sp.classList.add('hide');
+  setTimeout(() => { sp.style.display = 'none'; }, 550);
+  runAfterSplash();
+}
+
+// Lottie animatsiyani yuklaydi (.tgs=gzip yoki oddiy .json). Topilsa true.
+async function loadSplashAnim() {
+  const container = document.getElementById('splash-lottie');
+  if (!container || !window.lottie) return false;
+  for (const url of ['/static/splash/intro.tgs', '/static/splash/intro.json']) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const buf = await resp.arrayBuffer();
+      let data;
+      try {
+        data = JSON.parse(window.pako.inflate(new Uint8Array(buf), { to: 'string' }));  // .tgs (gzip)
+      } catch (e) {
+        data = JSON.parse(new TextDecoder().decode(buf));                                // oddiy .json
+      }
+      lottie.loadAnimation({ container, renderer: 'svg', loop: true, autoplay: true, animationData: data });
+      return true;
+    } catch (e) { /* keyingi nomzod */ }
+  }
+  return false;
+}
+
 (async () => {
   // Avval profil — server audience_pref'ini bilib olib, so'ng shu filtr bilan yuklaymiz
   await loadUserProfile();
   await loadShops();
   first('s-shops');
-  maybeShowOnboarding();   // audience_pref == null bo'lsa onboarding ko'rsatiladi
-
-  // Ulashilgan havola: ?startapp=shop__<slug> — o'sha salonni ochamiz
-  try {
-    const sp = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
-    if (sp && sp.indexOf('shop__') === 0) {
-      const slug = sp.slice(6);
-      if (slug) openShop(slug);
-    }
-  } catch (e) {}
 })();
+
+// Splash: animatsiya bo'lsa ~3.2s ko'rsatamiz; fayl yo'q/xato bo'lsa darhol o'tkazamiz.
+loadSplashAnim().then(ok => {
+  if (ok) setTimeout(dismissSplash, 3200);
+  else dismissSplash();
+});
 </script>
 </body>
 </html>
