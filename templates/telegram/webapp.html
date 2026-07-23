@@ -226,6 +226,26 @@
 .set-faq-q { color: var(--text); font-weight: 600; margin-top: 12px; }
 .set-faq-q:first-child { margin-top: 0; }
 .set-version { text-align: center; color: var(--muted); opacity: .7; font-size: 12px; padding: 18px 0 8px; }
+/* Auditoriya (salon turi) — professional radio-ro'yxat */
+.aud-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.aud-opt {
+  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+  background: var(--bg2); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 13px 15px; cursor: pointer;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.aud-opt:active { transform: scale(.98); }
+.aud-opt-ic {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px;
+  background: var(--bg3); display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.aud-opt-txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.aud-opt-txt b { font-size: 14.5px; font-weight: 600; color: var(--text); }
+.aud-opt-txt small { font-size: 12px; color: var(--muted); }
+.aud-opt-check { font-size: 20px; color: var(--border); flex-shrink: 0; transition: color .15s; }
+.aud-opt.active { border-color: var(--accent); background: var(--bg3); }
+.aud-opt.active .aud-opt-check { color: var(--accent); }
 /* ── Splash (ochilish — Lottie animatsiya) ──────────────── */
 #splash {
   position: fixed; inset: 0; z-index: 9999;
@@ -1173,7 +1193,6 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   <button class="bn-item" data-tab="shops" onclick="bottomNavGo('shops')"><i class="fa-solid fa-house"></i><span>Bosh</span></button>
   <button class="bn-item" data-tab="favorites" onclick="bottomNavGo('favorites')"><i class="fa-solid fa-heart"></i><span>Sevimli</span></button>
   <button class="bn-item" data-tab="my-bookings" onclick="bottomNavGo('my-bookings')"><i class="fa-solid fa-calendar-check"></i><span>Bronlar</span></button>
-  <button class="bn-item" id="bn-barber" data-tab="barber-dash" onclick="bottomNavGo('barber-dash')" style="display:none;"><i class="fa-solid fa-scissors"></i><span>Kabinet</span></button>
   <button class="bn-item" data-tab="settings" onclick="bottomNavGo('settings')"><i class="fa-solid fa-gear"></i><span>Sozlamalar</span></button>
 </nav>
 
@@ -1234,6 +1253,7 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 <div class="screen" id="s-shops">
   <div class="topbar">
     <div class="topbar-logo">Barber<span>Shop</span></div>
+    <button class="icon-btn" id="top-barber-btn" onclick="loadBarberDash()" title="Kabinetim" style="display:none;"><i class="fa-solid fa-scissors"></i></button>
     <button class="theme-btn" id="theme-btn-main" onclick="toggleTheme()" title="Tema o'zgartirish"><i class="fa-solid fa-moon"></i></button>
   </div>
   <div style="padding:12px 16px 2px;">
@@ -1385,18 +1405,25 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
     <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
   </div>
   <div class="set-wrap">
-    <div class="sec-label">Salon turi (filtr)</div>
-    <div class="seg-select" id="set-audience-seg">
-      <button class="aud-btn" data-v="men" onclick="setAudience('men')">Erkaklar</button>
-      <button class="aud-btn" data-v="women" onclick="setAudience('women')">Ayollar</button>
-      <button class="aud-btn" data-v="" onclick="setAudience('')">Barchasi</button>
+    <div class="sec-label">Salon turi</div>
+    <div class="aud-list" id="set-audience-list">
+      <button class="aud-opt" data-v="men" onclick="setAudience('men')">
+        <span class="aud-opt-ic">👨</span>
+        <span class="aud-opt-txt"><b>Erkaklar salonlari</b><small>Sartaroshxona, soqol, prichyoska</small></span>
+        <i class="fa-solid fa-circle-check aud-opt-check"></i>
+      </button>
+      <button class="aud-opt" data-v="women" onclick="setAudience('women')">
+        <span class="aud-opt-ic">👩</span>
+        <span class="aud-opt-txt"><b>Go'zallik salonlari</b><small>Ayollar uchun xizmatlar</small></span>
+        <i class="fa-solid fa-circle-check aud-opt-check"></i>
+      </button>
+      <button class="aud-opt" data-v="" onclick="setAudience('')">
+        <span class="aud-opt-ic">✨</span>
+        <span class="aud-opt-txt"><b>Barchasi</b><small>Barcha turdagi salonlar</small></span>
+        <i class="fa-solid fa-circle-check aud-opt-check"></i>
+      </button>
     </div>
 
-    <div class="sec-label">Ko'rinish</div>
-    <button class="set-row" onclick="toggleTheme()">
-      <span><i class="fa-solid fa-circle-half-stroke"></i> Kunduzgi / tungi rejim</span>
-      <i class="fa-solid fa-chevron-right"></i>
-    </button>
     <button class="set-row" id="set-become-barber" onclick="navGo('become-barber')" style="display:none;">
       <span style="color:var(--accent);font-weight:600;"><i class="fa-solid fa-scissors"></i> Barber bo'lish</span>
       <i class="fa-solid fa-chevron-right"></i>
@@ -1924,8 +1951,7 @@ function updateNav() {
 // ── Pastki tab menyu ──────────────────────────────────────
 const ROOT_TABS = {
   's-shops': 'shops', 's-fav': 'favorites',
-  's-my-bookings': 'my-bookings', 's-barber-dash': 'barber-dash',
-  's-settings': 'settings',
+  's-my-bookings': 'my-bookings', 's-settings': 'settings',
 };
 function updateBottomNav() {
   const bar = document.getElementById('bottom-nav');
@@ -1945,7 +1971,6 @@ function bottomNavGo(tab) {
   if (tab === 'shops') first('s-shops');
   else if (tab === 'favorites') { first('s-fav'); loadFavorites(); }
   else if (tab === 'my-bookings') { first('s-my-bookings'); loadMyBookings(); }
-  else if (tab === 'barber-dash') { first('s-barber-dash'); loadBarberDash(); }
   else if (tab === 'settings') { first('s-settings'); renderSettings(); }
 }
 function renderSettings() {
@@ -2071,8 +2096,8 @@ async function loadFavorites() {
 let audience = localStorage.getItem('audience') || '';   // '' = barchasi
 function audQS(sep) { return audience ? sep + 'audience=' + encodeURIComponent(audience) : ''; }
 function highlightAud() {
-  // Auditoriya endi Sozlamalar ekranidagi segmentdan boshqariladi
-  document.querySelectorAll('#set-audience-seg .aud-btn').forEach(b =>
+  // Auditoriya Sozlamalar ekranidagi radio-ro'yxatdan boshqariladi
+  document.querySelectorAll('#set-audience-list .aud-opt').forEach(b =>
     b.classList.toggle('active', (b.dataset.v || '') === audience));
 }
 function setAudience(v) {
@@ -3934,9 +3959,9 @@ async function loadUserProfile() {
       userProfile.is_barber ? '' : 'none';
     document.getElementById('nav-become-barber').style.display =
       userProfile.is_barber ? 'none' : '';
-    // Pastki menyu: «Kabinet» tabi faqat barberlarga
-    const bnBarber = document.getElementById('bn-barber');
-    if (bnBarber) bnBarber.style.display = userProfile.is_barber ? '' : 'none';
+    // Tepa «Kabinet» tugmasi faqat barberlarga (tema tugmasi oldida)
+    const topBarber = document.getElementById('top-barber-btn');
+    if (topBarber) topBarber.style.display = userProfile.is_barber ? '' : 'none';
   } catch(e) { /* ignore */ }
 }
 
