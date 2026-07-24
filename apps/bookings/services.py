@@ -6,6 +6,8 @@ so multi-service bookings only see time-slots that actually fit.
 from datetime import datetime, timedelta, time, date as date_type
 from typing import List
 
+from django.db import transaction
+
 from .models import Appointment, BlockedSlot
 from apps.shops.models import BarberProfile, WorkingHours
 
@@ -68,23 +70,27 @@ def create_appointment(*, client, barber, services, date, start_time) -> Appoint
         raise ValueError("Kamida bitta xizmat tanlang.")
 
     total_duration = sum(s.duration for s in services)
-    available = get_available_slots(barber, date, duration=total_duration)
-    if start_time not in available:
-        raise ValueError("Bu vaqt band yoki mavjud emas.")
-
     end_dt = datetime.combine(date, start_time) + timedelta(minutes=total_duration)
 
-    appointment = Appointment.objects.create(
-        client=client,
-        barber=barber,
-        service=services[0],           # asosiy (birinchi) xizmat
-        shop=barber.shop,
-        date=date,
-        start_time=start_time,
-        end_time=end_dt.time(),
-        status=Appointment.Status.PENDING,
-    )
-    appointment.services.set(services)
+    # MUHIM: double-booking (bir vaqtga ikki bron) race'ini yopish.
+    # Barber qatorini qulflaymiz — shu barberga bir vaqtda bir nechta bron
+    # yaratilishi ketma-ket bo'ladi. Qulf ichida bo'sh-vaqtni QAYTA tekshiramiz
+    # (TOCTOU: tekshiruv bilan yozish orasida boshqa mijoz band qilib qo'ymasin).
+    with transaction.atomic():
+        BarberProfile.objects.select_for_update().get(pk=barber.pk)
+        if start_time not in get_available_slots(barber, date, duration=total_duration):
+            raise ValueError("Bu vaqt band yoki mavjud emas.")
+        appointment = Appointment.objects.create(
+            client=client,
+            barber=barber,
+            service=services[0],           # asosiy (birinchi) xizmat
+            shop=barber.shop,
+            date=date,
+            start_time=start_time,
+            end_time=end_dt.time(),
+            status=Appointment.Status.PENDING,
+        )
+        appointment.services.set(services)
     return appointment
 
 
