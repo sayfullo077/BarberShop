@@ -1430,7 +1430,7 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
       <i class="fa-regular fa-calendar-check"></i> Bronlarimga o'tish
     </button>
     <button class="btn-primary btn-secondary" style="margin-top:6px;width:240px;" id="btn-close-app">
-      <i class="fa-solid fa-xmark"></i> Yopish
+      <i class="fa-solid fa-house"></i> Bosh sahifaga
     </button>
   </div>
 </div>
@@ -3384,9 +3384,10 @@ function confirmDeleteShop() {
 // ══════════════════════════════════════════════════════
 document.getElementById('btn-go-mybookings').addEventListener('click', () => { screenStack=[]; loadMyBookings(); });
 document.getElementById('btn-close-app').addEventListener('click', () => {
-  try { tg.close(); } catch(e) {}
-  // Zaxira: Telegram ilovani yopa olmasa (brauzer/eski versiya) — bosh sahifaga
-  setTimeout(() => { screenStack = []; first('s-shops'); }, 350);
+  // Ilovani YOPMAYMIZ — bosh sahifaga qaytamiz
+  try { tg.HapticFeedback.selectionChanged(); } catch(e) {}
+  screenStack = [];
+  first('s-shops');
 });
 
 
