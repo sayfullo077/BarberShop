@@ -3398,11 +3398,6 @@ document.getElementById('btn-close-app').addEventListener('click', () => {
   setTimeout(() => { screenStack = []; first('s-shops'); }, 350);
 });
 
-// Delegate clicks inside service-content (dynamically rendered)
-document.getElementById('service-content').addEventListener('click', e => {
-  const li = e.target.closest('.price-item[onclick]');
-  if (li) { const fn = li.getAttribute('onclick'); if (fn) eval(fn); }
-});
 
 // ══════════════════════════════════════════════════════
 // Barber Registration State
