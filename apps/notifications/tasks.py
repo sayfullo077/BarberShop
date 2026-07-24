@@ -210,6 +210,32 @@ def send_reengagement_nudges():
     return sent
 
 
+def notify_reschedule(appointment_id: str):
+    """Bron vaqti o'zgartirilganda mijoz va barberga yangi vaqtni xabar qiladi."""
+    try:
+        appt = Appointment.objects.select_related(
+            "client", "barber__user", "service", "shop"
+        ).get(id=appointment_id)
+    except Appointment.DoesNotExist:
+        return
+    when = f"{appt.date.strftime('%d.%m.%Y')} soat <b>{appt.start_time.strftime('%H:%M')}</b>"
+    notify_user(
+        appt.client,
+        f"🔄 <b>Bron vaqti o'zgartirildi</b>\n\n"
+        f"Yangi vaqt: {when}\n"
+        f"✂️ {appt.service.name} — {appt.shop.name}",
+        appt, "rescheduled",
+    )
+    notify_user(
+        appt.barber.user,
+        f"🔄 <b>Bron vaqti o'zgardi</b>\n\n"
+        f"👤 {appt.client.get_full_name() or appt.client.username}\n"
+        f"Yangi vaqt: {when}\n"
+        f"✂️ {appt.service.name}",
+        appt, "rescheduled",
+    )
+
+
 def send_cancellation_notice(appointment_id: str):
     """Notify barber when client cancels."""
     try:

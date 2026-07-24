@@ -564,6 +564,89 @@ def booking_cancel(request, appointment_id):
 
 
 # ---------------------------------------------------------------------------
+# Reschedule (bron vaqtini o'zgartirish / ko'chirish)
+# ---------------------------------------------------------------------------
+
+def _reschedulable_or_error(request, appointment_id):
+    appt = (
+        Appointment.objects.filter(id=appointment_id, client=request.tg_user)
+        .select_related("barber", "service").prefetch_related("services").first()
+    )
+    if not appt:
+        return None, _err("Bron topilmadi", status=404)
+    if appt.status not in (Appointment.Status.PENDING, Appointment.Status.CONFIRMED):
+        return None, _err("Bu bronni o'zgartirib bo'lmaydi")
+    return appt, None
+
+
+@webapp_api
+@require_GET
+def reschedule_slots(request, appointment_id):
+    """Reschedule uchun: shu bron barberining tanlangan sanadagi bo'sh vaqtlari
+    (joriy bronning o'zi band deb hisoblanmaydi)."""
+    appt, err = _reschedulable_or_error(request, appointment_id)
+    if err:
+        return err
+    date_str = request.GET.get("date")
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return _err("Noto'g'ri sana")
+    if d < date.today():
+        return JsonResponse({"slots": []})
+
+    from apps.bookings.services import get_available_slots
+    services = list(appt.services.all()) or [appt.service]
+    duration = sum(s.duration for s in services)
+    slots = get_available_slots(appt.barber, d, duration=duration, exclude_id=appt.id)
+    return JsonResponse({
+        "slots": [s.strftime("%H:%M") for s in slots],
+        "duration": duration,
+        "current": {"date": appt.date.isoformat(), "time": appt.start_time.strftime("%H:%M")},
+    })
+
+
+@csrf_exempt
+@webapp_api
+@require_POST
+def booking_reschedule(request, appointment_id):
+    """Bronni yangi vaqtga ko'chiradi: eski slot bo'shaydi (navbatga xabar),
+    yangi vaqt uchun tasdiq/eslatma qayta tiklanadi."""
+    appt, err = _reschedulable_or_error(request, appointment_id)
+    if err:
+        return err
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return _err("JSON kerak")
+    try:
+        new_date = datetime.strptime(data.get("date") or "", "%Y-%m-%d").date()
+        new_time = datetime.strptime(data.get("time") or "", "%H:%M").time()
+    except ValueError:
+        return _err("Sana yoki vaqt noto'g'ri")
+    if new_date < date.today():
+        return _err("O'tgan sanaga ko'chirib bo'lmaydi")
+
+    from apps.bookings.services import reschedule_appointment
+    try:
+        appt, old_date = reschedule_appointment(appt, new_date, new_time)
+    except ValueError as e:
+        return _err(str(e), status=409)
+
+    from django_q.tasks import async_task
+    # Eski slot bo'shadi — o'sha barber+sana navbatidagilarga xabar
+    async_task("apps.notifications.tasks.notify_waitlist", str(appt.barber_id), old_date.isoformat())
+    # Mijoz + barberga yangi vaqt haqida xabar
+    async_task("apps.notifications.tasks.notify_reschedule", str(appt.id))
+
+    return JsonResponse({
+        "ok": True,
+        "date": appt.date.strftime("%d.%m.%Y"),
+        "time": appt.start_time.strftime("%H:%M"),
+    })
+
+
+# ---------------------------------------------------------------------------
 # Waitlist (navbat) — to'lgan kunda joy bo'shasa xabar berish
 # ---------------------------------------------------------------------------
 

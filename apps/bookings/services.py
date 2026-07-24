@@ -12,12 +12,14 @@ from .models import Appointment, BlockedSlot
 from apps.shops.models import BarberProfile, WorkingHours
 
 
-def get_available_slots(barber: BarberProfile, date: date_type, duration: int = None) -> List[time]:
+def get_available_slots(barber: BarberProfile, date: date_type, duration: int = None,
+                        exclude_id=None) -> List[time]:
     """
     Berilgan barber, sana va kerakli DAVOMIYLIK uchun bo'sh boshlanish vaqtlari.
     Ish vaqti, mavjud bronlar (to'liq oralik overlap) va bloklarni hisobga oladi.
     `duration` — daqiqada (masalan tanlangan xizmatlar yig'indisi). Bo'sh bo'lsa
-    barber.slot_duration ishlatiladi.
+    barber.slot_duration ishlatiladi. `exclude_id` — bo'lsa, o'sha bronni band deb
+    hisoblamaydi (reschedule uchun — bron o'zining eski vaqtini bloklamasin).
     """
     day_of_week = date.weekday()
     try:
@@ -32,9 +34,12 @@ def get_available_slots(barber: BarberProfile, date: date_type, duration: int = 
 
     # Mavjud band oraliklar: bronlar (start..end) + bloklar
     intervals = []
-    for s, e in Appointment.objects.filter(
+    appt_qs = Appointment.objects.filter(
         barber=barber, date=date, status__in=Appointment.ACTIVE_STATUSES,
-    ).values_list("start_time", "end_time"):
+    )
+    if exclude_id is not None:
+        appt_qs = appt_qs.exclude(id=exclude_id)
+    for s, e in appt_qs.values_list("start_time", "end_time"):
         intervals.append((datetime.combine(date, s), datetime.combine(date, e)))
     for s, e in BlockedSlot.objects.filter(barber=barber, date=date).values_list(
         "start_time", "end_time"
@@ -92,6 +97,37 @@ def create_appointment(*, client, barber, services, date, start_time) -> Appoint
         )
         appointment.services.set(services)
     return appointment
+
+
+def reschedule_appointment(appointment, new_date, new_start_time):
+    """Bronni yangi vaqtga (o'sha barber, o'sha xizmatlar) ko'chiradi.
+    Double-booking'siz: barberni qulflab, joriy bronni hisobga olmay bo'sh-vaqtni
+    qayta tekshiradi. (appointment, old_date) qaytaradi — eski slot bo'shadi.
+    Eslatma bayroqlari qayta tiklanadi (yangi vaqt uchun eslatmalar ketsin)."""
+    services = list(appointment.services.all()) or [appointment.service]
+    total_duration = sum(s.duration for s in services)
+    end_dt = datetime.combine(new_date, new_start_time) + timedelta(minutes=total_duration)
+    barber = appointment.barber
+    old_date = appointment.date
+
+    with transaction.atomic():
+        BarberProfile.objects.select_for_update().get(pk=barber.pk)
+        avail = get_available_slots(
+            barber, new_date, duration=total_duration, exclude_id=appointment.id
+        )
+        if new_start_time not in avail:
+            raise ValueError("Bu vaqt band yoki mavjud emas.")
+        appointment.date = new_date
+        appointment.start_time = new_start_time
+        appointment.end_time = end_dt.time()
+        appointment.reminded_5m = False
+        appointment.reminded_1h = False
+        appointment.reminded_24h = False
+        appointment.save(update_fields=[
+            "date", "start_time", "end_time",
+            "reminded_5m", "reminded_1h", "reminded_24h", "updated_at",
+        ])
+    return appointment, old_date
 
 
 #: Shu ko'p bekor qilishdan so'ng mijoz avtomatik bloklanadi (barberlarni himoya)

@@ -3,12 +3,14 @@ Bron mantiqi testlari — slot generatsiyasi va bron yaratish.
 Bu modul avval real overlap bug bo'lgan joy (faqat aniq start_time collision
 tekshirilardi) — regressiyani ushlab turadi.
 """
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.test import TestCase
 
 from apps.bookings.models import Appointment, BlockedSlot
-from apps.bookings.services import get_available_slots, create_appointment
+from apps.bookings.services import (
+    get_available_slots, create_appointment, reschedule_appointment,
+)
 from apps.core.test_utils import (
     make_shop, make_barber, make_service, make_client, set_working_hours,
     make_appointment,
@@ -198,3 +200,46 @@ class FavoriteModelTests(TestCase):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 Favorite.objects.create(client=c, shop=shop)
+
+
+class RescheduleTests(TestCase):
+    def setUp(self):
+        self.shop = make_shop()
+        self.barber = make_barber(self.shop, slot_duration=30)
+        self.day = _tomorrow()
+        set_working_hours(self.shop, self.day.weekday(), open_h=9, close_h=12)
+        self.svc = make_service(self.shop, duration=30)
+        self.client_user = make_client()
+
+    def _appt(self, start, client=None):
+        end = (datetime.combine(self.day, start) + timedelta(minutes=30)).time()
+        a = Appointment.objects.create(
+            client=client or self.client_user, barber=self.barber, service=self.svc,
+            shop=self.shop, date=self.day, start_time=start, end_time=end,
+            status=Appointment.Status.CONFIRMED, reminded_24h=True,
+        )
+        a.services.set([self.svc])
+        return a
+
+    def test_reschedule_moves_to_free_slot(self):
+        a = self._appt(time(10, 0))
+        appt, old_date = reschedule_appointment(a, self.day, time(11, 0))
+        appt.refresh_from_db()
+        self.assertEqual(appt.start_time, time(11, 0))
+        self.assertEqual(appt.end_time, time(11, 30))
+        self.assertEqual(old_date, self.day)
+        self.assertFalse(appt.reminded_24h)   # eslatma bayroqlari qayta tiklandi
+
+    def test_reschedule_to_occupied_slot_rejected(self):
+        a = self._appt(time(10, 0))
+        self._appt(time(11, 0), client=make_client())   # 11:00 band
+        with self.assertRaises(ValueError):
+            reschedule_appointment(a, self.day, time(11, 0))
+        a.refresh_from_db()
+        self.assertEqual(a.start_time, time(10, 0))      # o'zgarmadi
+
+    def test_reschedule_excludes_own_current_slot(self):
+        # O'z vaqtiga (10:00) ko'chirish — o'zini band deb hisoblamasligi kerak
+        a = self._appt(time(10, 0))
+        appt, _ = reschedule_appointment(a, self.day, time(10, 0))
+        self.assertEqual(appt.start_time, time(10, 0))   # xatosiz

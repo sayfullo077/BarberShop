@@ -1381,6 +1381,24 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   </button>
 </div>
 
+<!-- ══════════ RESCHEDULE (vaqtni o'zgartirish) ══════════ -->
+<div class="screen" id="s-reschedule">
+  <div class="topbar">
+    <div class="topbar-logo">Vaqtni o'zgartirish</div>
+    <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+  </div>
+  <div id="resched-current" style="margin:10px 16px 0;color:var(--muted);font-size:13px;"></div>
+  <div class="sec-label">Yangi sana</div>
+  <div class="date-wrap">
+    <input type="date" class="date-field" id="resched-date" onchange="loadRescheduleSlots(this.value)">
+  </div>
+  <div id="resched-slots">
+    <div class="empty-wrap" style="padding:20px;">
+      <div class="empty-sub" style="color:var(--muted);font-size:12px;letter-spacing:1px;">SANA TANLANG</div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ CONFIRM ══════════ -->
 <div class="screen" id="s-confirm">
   <div class="topbar">
@@ -2828,7 +2846,10 @@ async function openDetail(id) {
         <div class="sum-row"><span class="sum-label">Vaqt</span><span class="sum-val">${a.time} – ${a.end_time}</span></div>
         <div class="sum-row"><span class="sum-label">Narx</span><span class="sum-val sum-price">${fmtP(a.price)}</span></div>
       </div>
-      ${a.can_cancel ? `<button class="btn-primary btn-danger" onclick="cancelBooking('${a.id}')">
+      ${a.can_cancel ? `<button class="btn-primary btn-secondary" onclick="openReschedule('${a.id}')">
+        <i class="fa-regular fa-clock"></i> Vaqtni o'zgartirish
+      </button>
+      <button class="btn-primary btn-danger" onclick="cancelBooking('${a.id}')">
         <i class="fa-solid fa-xmark"></i> Bronni bekor qilish
       </button>` : ''}
       ${a.can_review ? `
@@ -2847,6 +2868,55 @@ async function openDetail(id) {
     `;
   } catch(e) {
     el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+// ── Reschedule (bron vaqtini o'zgartirish) ────────────────
+let rescheduleId = null;
+function openReschedule(id) {
+  rescheduleId = id;
+  const a = (detailCache || []).find(x => x.id === id);
+  goTo('s-reschedule');
+  document.getElementById('resched-current').innerHTML = a
+    ? `Joriy: <b style="color:var(--text);">${a.date} ${a.time}</b> · ${esc(a.barber_name)}` : '';
+  const inp = document.getElementById('resched-date');
+  const today = new Date().toISOString().slice(0, 10);
+  inp.min = today;
+  inp.value = (a && a.date_iso) ? a.date_iso : today;
+  loadRescheduleSlots(inp.value);
+}
+
+async function loadRescheduleSlots(date) {
+  const el = document.getElementById('resched-slots');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><div class="spinner-text">BO\'SH VAQTLAR</div></div>';
+  try {
+    const { slots } = await GET(`/api/bookings/${rescheduleId}/reschedule-slots/?date=${date}`);
+    if (!slots.length) {
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon" style="font-size:32px;"><i class="fa-regular fa-face-frown"></i></div>
+        <div class="empty-title">Bo'sh vaqt yo'q</div>
+        <div class="empty-sub">Boshqa kun tanlang</div></div>`;
+      return;
+    }
+    let html = '<div class="sec-label">Yangi vaqtni tanlang</div><div class="slots-wrap"><div class="slots-grid">';
+    slots.forEach(t => {
+      html += `<div class="slot-btn" onclick="confirmReschedule('${date}','${t}')">${t}</div>`;
+    });
+    el.innerHTML = html + '</div></div>';
+  } catch (e) {
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+async function confirmReschedule(date, time) {
+  const ok = await new Promise(r => uiConfirm(`Bron ${date} ${time} ga ko'chirilsinmi?`, r));
+  if (!ok) return;
+  try {
+    const r = await POST(`/api/bookings/${rescheduleId}/reschedule/`, { date, time });
+    tg.HapticFeedback.notificationOccurred('success');
+    uiAlert(`Bron ko'chirildi: ${r.date} ${r.time} ✓`, () => { screenStack = []; loadMyBookings(); });
+  } catch (e) {
+    uiAlert('Xatolik: ' + e.message);
+    tg.HapticFeedback.notificationOccurred('error');
   }
 }
 
