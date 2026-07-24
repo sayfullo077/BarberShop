@@ -246,6 +246,24 @@
 .aud-opt-check { font-size: 20px; color: var(--border); flex-shrink: 0; transition: color .15s; }
 .aud-opt.active { border-color: var(--accent); background: var(--bg3); }
 .aud-opt.active .aud-opt-check { color: var(--accent); }
+.set-row-val { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; }
+.set-row-val i { font-size: 12px; }
+/* Pastdan chiquvchi menu (bottom-sheet) */
+.sheet-overlay {
+  position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.5);
+  display: flex; align-items: flex-end;
+  opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s ease;
+}
+.sheet-overlay.open { opacity: 1; visibility: visible; }
+.sheet {
+  width: 100%; background: var(--bg); border-radius: 20px 20px 0 0;
+  padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 8px;
+  transform: translateY(100%); transition: transform .3s cubic-bezier(.2,.9,.3,1);
+}
+.sheet-overlay.open .sheet { transform: translateY(0); }
+.sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--bg3); margin: 4px auto 10px; }
+.sheet-title { font-weight: 600; font-size: 16px; margin: 0 2px 8px; }
 /* ── Splash (ochilish — Lottie animatsiya) ──────────────── */
 #splash {
   position: fixed; inset: 0; z-index: 9999;
@@ -1196,6 +1214,29 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   <button class="bn-item" data-tab="settings" onclick="bottomNavGo('settings')"><i class="fa-solid fa-gear"></i><span>Sozlamalar</span></button>
 </nav>
 
+<!-- ══════════ SALON TURI — pastdan chiquvchi menu ══════════ -->
+<div id="audience-sheet" class="sheet-overlay" onclick="if(event.target===this)closeAudienceSheet()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Salon turini tanlang</div>
+    <button class="aud-opt" data-v="men" onclick="pickAudience('men')">
+      <span class="aud-opt-ic">👨</span>
+      <span class="aud-opt-txt"><b>Erkaklar salonlari</b><small>Sartaroshxona, soqol, prichyoska</small></span>
+      <i class="fa-solid fa-circle-check aud-opt-check"></i>
+    </button>
+    <button class="aud-opt" data-v="women" onclick="pickAudience('women')">
+      <span class="aud-opt-ic">👩</span>
+      <span class="aud-opt-txt"><b>Go'zallik salonlari</b><small>Ayollar uchun xizmatlar</small></span>
+      <i class="fa-solid fa-circle-check aud-opt-check"></i>
+    </button>
+    <button class="aud-opt" data-v="" onclick="pickAudience('')">
+      <span class="aud-opt-ic">✨</span>
+      <span class="aud-opt-txt"><b>Barchasi</b><small>Barcha turdagi salonlar</small></span>
+      <i class="fa-solid fa-circle-check aud-opt-check"></i>
+    </button>
+  </div>
+</div>
+
 <div id="nav-backdrop" onclick="closeNav()"></div>
 <div id="nav-overlay">
   <div class="nav-header">
@@ -1253,7 +1294,7 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
 <div class="screen" id="s-shops">
   <div class="topbar">
     <div class="topbar-logo">Barber<span>Shop</span></div>
-    <button class="icon-btn" id="top-barber-btn" onclick="loadBarberDash()" title="Kabinetim" style="display:none;"><i class="fa-solid fa-scissors"></i></button>
+    <button class="icon-btn" id="top-barber-btn" onclick="loadBarberDash()" title="Kabinetim" style="display:none;"><i class="fa-regular fa-user"></i></button>
     <button class="theme-btn" id="theme-btn-main" onclick="toggleTheme()" title="Tema o'zgartirish"><i class="fa-solid fa-moon"></i></button>
   </div>
   <div style="padding:12px 16px 2px;">
@@ -1405,24 +1446,11 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
     <button class="theme-btn theme-btn-topbar" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
   </div>
   <div class="set-wrap">
-    <div class="sec-label">Salon turi</div>
-    <div class="aud-list" id="set-audience-list">
-      <button class="aud-opt" data-v="men" onclick="setAudience('men')">
-        <span class="aud-opt-ic">👨</span>
-        <span class="aud-opt-txt"><b>Erkaklar salonlari</b><small>Sartaroshxona, soqol, prichyoska</small></span>
-        <i class="fa-solid fa-circle-check aud-opt-check"></i>
-      </button>
-      <button class="aud-opt" data-v="women" onclick="setAudience('women')">
-        <span class="aud-opt-ic">👩</span>
-        <span class="aud-opt-txt"><b>Go'zallik salonlari</b><small>Ayollar uchun xizmatlar</small></span>
-        <i class="fa-solid fa-circle-check aud-opt-check"></i>
-      </button>
-      <button class="aud-opt" data-v="" onclick="setAudience('')">
-        <span class="aud-opt-ic">✨</span>
-        <span class="aud-opt-txt"><b>Barchasi</b><small>Barcha turdagi salonlar</small></span>
-        <i class="fa-solid fa-circle-check aud-opt-check"></i>
-      </button>
-    </div>
+    <div class="sec-label">Salon turi (filtr)</div>
+    <button class="set-row" onclick="openAudienceSheet()">
+      <span><i class="fa-solid fa-store"></i> Salon turi</span>
+      <span class="set-row-val"><span id="set-audience-val">Barchasi</span><i class="fa-solid fa-chevron-right"></i></span>
+    </button>
 
     <button class="set-row" id="set-become-barber" onclick="navGo('become-barber')" style="display:none;">
       <span style="color:var(--accent);font-weight:600;"><i class="fa-solid fa-scissors"></i> Barber bo'lish</span>
@@ -1790,19 +1818,32 @@ textarea.form-input { resize: none; height: 84px; line-height: 1.5; }
   </div>
 
   <div class="support-hero">
-    <div class="support-hero-icon">💬</div>
+    <div class="support-hero-icon"><i class="fa-regular fa-comment-dots"></i></div>
     <div class="support-hero-title">Murojaat qiling</div>
-    <div class="support-hero-sub">Savol yoki takliflaringizni yuboring,<br>tez orada javob beramiz.</div>
-    <div class="support-email-tag">
-      <i class="fa-solid fa-envelope"></i> sayfulloh.dev@gmail.com
-    </div>
+    <div class="support-hero-sub">Savol, taklif yoki muammo — matn va istalgan<br>fayl (rasm, video, PDF…) bilan yuboring.</div>
   </div>
 
   <div class="form-group">
-    <label class="form-label">Xabaringiz *</label>
+    <label class="form-label">Xabaringiz</label>
     <textarea class="form-input" id="support-msg" rows="5"
       placeholder="Muammo yoki taklifingizni yozing..."></textarea>
   </div>
+
+  <div class="form-group">
+    <label class="form-label">Fayl biriktirish (ixtiyoriy)</label>
+    <input type="file" id="support-file" style="display:none;"
+      accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" onchange="onSupportFile()">
+    <button class="btn-primary btn-secondary" id="support-file-btn" style="justify-content:flex-start;margin:0;"
+      onclick="document.getElementById('support-file').click()">
+      <i class="fa-solid fa-paperclip"></i> Fayl tanlash (≤ 50 MB)
+    </button>
+    <div id="support-file-info" style="display:none;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:8px;">
+      <i class="fa-regular fa-file" style="color:var(--muted);"></i>
+      <span id="support-file-name" style="flex:1;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+      <i class="fa-solid fa-xmark" onclick="clearSupportFile()" style="color:var(--muted);cursor:pointer;padding:2px 4px;"></i>
+    </div>
+  </div>
+
   <div class="error-box" id="support-err"></div>
   <div class="success-box" id="support-ok" style="display:none;">
     <i class="fa-solid fa-circle-check"></i> Xabaringiz yuborildi! Tez orada javob beramiz.
@@ -2081,7 +2122,7 @@ async function loadFavorites() {
   try {
     const { shops } = await GET('/api/favorites/');
     if (!shops.length) {
-      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">🤍</div>
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-regular fa-heart"></i></div>
         <div class="empty-title">Sevimlilar bo'sh</div>
         <div class="empty-sub">Salon sahifasidagi yurakchani bosib qo'shing</div></div>`;
       return;
@@ -2095,10 +2136,24 @@ async function loadFavorites() {
 // ── Salon turi filtri (auditoriya) — localStorage'da eslab qolinadi ──
 let audience = localStorage.getItem('audience') || '';   // '' = barchasi
 function audQS(sep) { return audience ? sep + 'audience=' + encodeURIComponent(audience) : ''; }
+const AUD_LABEL = { men: 'Erkaklar', women: 'Ayollar', '': 'Barchasi' };
 function highlightAud() {
-  // Auditoriya Sozlamalar ekranidagi radio-ro'yxatdan boshqariladi
-  document.querySelectorAll('#set-audience-list .aud-opt').forEach(b =>
+  // Auditoriya pastdan chiquvchi menu (sheet)dan boshqariladi
+  document.querySelectorAll('#audience-sheet .aud-opt').forEach(b =>
     b.classList.toggle('active', (b.dataset.v || '') === audience));
+  const lbl = document.getElementById('set-audience-val');
+  if (lbl) lbl.textContent = AUD_LABEL[audience] || 'Barchasi';
+}
+function openAudienceSheet() {
+  highlightAud();
+  document.getElementById('audience-sheet').classList.add('open');
+}
+function closeAudienceSheet() {
+  document.getElementById('audience-sheet').classList.remove('open');
+}
+function pickAudience(v) {
+  setAudience(v);            // localStorage + ro'yxatni qayta yuklaydi + highlightAud
+  closeAudienceSheet();
 }
 function setAudience(v) {
   audience = v || '';
@@ -2134,13 +2189,13 @@ async function loadShops() {
   try {
     const { shops } = await GET('/api/shops/' + audQS('?'));
     if (!shops.length) {
-      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">✂️</div>
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-scissors"></i></div>
         <div class="empty-title">Salonlar yo'q</div></div>`;
       return;
     }
     el.innerHTML = '<div class="sec-label">Salonlar</div>' + shops.map(shopCardHtml).join('');
   } catch(e) {
-    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
       <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
   }
 }
@@ -2169,7 +2224,7 @@ async function runSearch(q) {
   try {
     const { shops } = await GET('/api/search/?q=' + encodeURIComponent(q) + audQS('&'));
     if (!shops.length) {
-      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">🔍</div>
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
         <div class="empty-title">Topilmadi</div>
         <div class="empty-sub">«${esc(q)}» bo'yicha natija yo'q</div></div>`;
       return;
@@ -2177,7 +2232,7 @@ async function runSearch(q) {
     el.innerHTML = `<div class="sec-label">Natijalar <span style="color:var(--muted);font-weight:400;">(${shops.length})</span></div>`
       + shops.map(shopCardHtml).join('');
   } catch(e) {
-    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
       <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
   }
 }
@@ -2222,7 +2277,7 @@ function showNearby() {
       try {
         const { shops } = await GET(`/api/nearby/?lat=${lat}&lng=${lng}` + audQS('&'));
         if (!shops.length) {
-          el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
+          el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-location-dot"></i></div>
             <div class="empty-title">Yaqinda salon yo'q</div>
             <div class="empty-sub">Joylashuvi belgilangan salonlar hali yo'q</div></div>`;
           return;
@@ -2233,7 +2288,7 @@ function showNearby() {
       }
     },
     (lm) => {
-      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">📍</div>
+      el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-location-dot"></i></div>
         <div class="empty-title">Joylashuv olinmadi</div>
         <div class="empty-sub">Joylashuvga ruxsat bering va qayta urining</div>
         <button class="btn-primary btn-secondary" style="margin-top:14px;width:auto;padding:10px 18px;" onclick="showNearby()">Qayta urinish</button></div>`;
@@ -2364,7 +2419,7 @@ async function openShop(slug) {
       startBooking();
     });
   } catch(e) {
-    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon">⚠️</div>
+    el.innerHTML = `<div class="empty-wrap"><div class="empty-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
       <div class="empty-title">Xatolik</div><div class="empty-sub">${esc(e.message)}</div></div>`;
   }
 }
@@ -2550,7 +2605,7 @@ async function loadSlots(date) {
     const { slots, waitlisted } = await GET(`/api/slots/?barber_id=${bk.barberId}&date=${date}&duration=${bkTotalDuration()}`);
     if (!slots.length) {
       el.innerHTML = `<div class="empty-wrap">
-        <div class="empty-icon" style="font-size:32px;">😔</div>
+        <div class="empty-icon" style="font-size:32px;"><i class="fa-regular fa-face-frown"></i></div>
         <div class="empty-title">Bo'sh vaqt yo'q</div>
         <div class="empty-sub">Boshqa kun tanlang yoki navbatga yoziling</div>
         ${waitlistBtnHtml(waitlisted)}</div>`;
@@ -2683,7 +2738,7 @@ async function loadMyBookings() {
     const { appointments } = await GET('/api/my-bookings/');
     if (!appointments.length) {
       el.innerHTML = `<div class="empty-wrap">
-        <div class="empty-icon">📋</div>
+        <div class="empty-icon"><i class="fa-regular fa-calendar-check"></i></div>
         <div class="empty-title">Bronlar yo'q</div>
         <div class="empty-sub">Hali bron qilmagansiz</div>
       </div>`;
@@ -3912,26 +3967,60 @@ async function saveBarberProfile() {
 // ══════════════════════════════════════════════════════
 // Support
 // ══════════════════════════════════════════════════════
+const SUPPORT_MAX_MB = 50;
+function onSupportFile() {
+  const f = document.getElementById('support-file').files[0];
+  const info = document.getElementById('support-file-info');
+  const err = document.getElementById('support-err');
+  err.style.display = 'none';
+  if (!f) { info.style.display = 'none'; return; }
+  if (f.size > SUPPORT_MAX_MB * 1024 * 1024) {
+    err.textContent = `Fayl ${SUPPORT_MAX_MB} MB dan oshmasin`; err.style.display = 'block';
+    clearSupportFile(); return;
+  }
+  const kb = f.size / 1024;
+  const sz = kb > 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB';
+  document.getElementById('support-file-name').textContent = `${f.name} · ${sz}`;
+  info.style.display = 'flex';
+}
+function clearSupportFile() {
+  document.getElementById('support-file').value = '';
+  document.getElementById('support-file-info').style.display = 'none';
+}
+
 async function submitSupport() {
   const msg = document.getElementById('support-msg').value.trim();
+  const file = document.getElementById('support-file').files[0];
   const err = document.getElementById('support-err');
   const ok  = document.getElementById('support-ok');
   const btn = document.getElementById('support-send-btn');
   err.style.display = 'none'; ok.style.display = 'none';
 
-  if (!msg) {
-    err.textContent = 'Xabarni kiriting'; err.style.display = 'block';
+  if (!msg && !file) {
+    err.textContent = 'Xabar yozing yoki fayl biriktiring'; err.style.display = 'block';
     tg.HapticFeedback.notificationOccurred('error'); return;
+  }
+  if (file && file.size > SUPPORT_MAX_MB * 1024 * 1024) {
+    err.textContent = `Fayl ${SUPPORT_MAX_MB} MB dan oshmasin`; err.style.display = 'block'; return;
   }
 
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
 
   try {
-    await POST('/api/support/', { message: msg });
+    const fd = new FormData();
+    fd.append('message', msg);
+    if (file) fd.append('file', file);
+    const r = await fetch('/api/support/', { method: 'POST', headers: authHeadersRaw(), body: fd });
+    if (!r.ok) {
+      let m = 'Xatolik';
+      try { m = (await r.json()).error || m; } catch (e) {}
+      throw new Error(m);
+    }
     tg.HapticFeedback.notificationOccurred('success');
     ok.style.display = 'flex';
     document.getElementById('support-msg').value = '';
+    clearSupportFile();
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Yuborildi';
   } catch(e) {
     btn.disabled = false;

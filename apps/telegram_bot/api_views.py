@@ -1504,15 +1504,28 @@ def join_request_respond(request, request_id):
 @csrf_exempt
 @webapp_api
 def support_message(request):
-    """Foydalanuvchidan xabar qabul qilish."""
+    """Foydalanuvchi murojaati — matn va/yoki fayl (≤50MB). Admin(lar)ga
+    Telegram bot orqali yuboriladi (kim, xabar, fayl va boshqa ma'lumot bilan)."""
+    from django.conf import settings
     if request.method != "POST":
         return _err("POST kerak", 405)
-    body = json.loads(request.body or b"{}")
-    msg = (body.get("message") or "").strip()
-    if not msg:
-        return _err("Xabar bo'sh bo'lishi mumkin emas")
+
+    # Multipart (fayl bilan) yoki oddiy JSON
+    ctype = request.content_type or ""
+    if ctype.startswith("multipart/"):
+        msg = (request.POST.get("message") or "").strip()
+        f = request.FILES.get("file")
+    else:
+        body = json.loads(request.body or b"{}")
+        msg = (body.get("message") or "").strip()
+        f = None
+
+    if not msg and not f:
+        return _err("Xabar yoki fayl yuboring")
     if len(msg) > 2000:
         return _err("Xabar 2000 belgidan oshmasin")
+    if f and f.size > settings.SUPPORT_MAX_FILE_MB * 1024 * 1024:
+        return _err(f"Fayl {settings.SUPPORT_MAX_FILE_MB} MB dan oshmasin")
 
     u = request.tg_user
     from apps.core.models import ContactMessage
@@ -1520,13 +1533,51 @@ def support_message(request):
         user=u,
         message=msg,
         telegram_username=u.telegram_username or u.username,
+        attachment=f,
     )
 
-    # Async email notification
     from django_q.tasks import async_task
-    async_task("apps.telegram_bot.api_views._send_support_email", str(cm.id))
+    async_task("apps.telegram_bot.api_views._send_support_telegram", str(cm.id))
 
     return JsonResponse({"ok": True})
+
+
+def _send_support_telegram(cm_id: str):
+    """Background: murojaatni admin(lar)ga Telegram orqali yuboradi."""
+    from django.conf import settings
+    from apps.core.models import ContactMessage
+    from apps.notifications.senders import send_telegram_message, send_telegram_document
+    try:
+        cm = ContactMessage.objects.select_related("user").get(id=cm_id)
+    except ContactMessage.DoesNotExist:
+        return
+
+    # Manzil: SUPPORT_CHAT_ID (env, vergul bilan) yoki telegram_id li superuserlar
+    targets = [c.strip() for c in (settings.SUPPORT_CHAT_ID or "").split(",") if c.strip()]
+    if not targets:
+        targets = [
+            str(t) for t in User.objects.filter(
+                is_superuser=True, telegram_id__isnull=False
+            ).values_list("telegram_id", flat=True)
+        ]
+    if not targets:
+        return
+
+    u = cm.user
+    uname = f"@{cm.telegram_username}" if cm.telegram_username else "—"
+    text = (
+        f"📩 <b>Yangi murojaat</b>\n\n"
+        f"👤 <b>{(u.get_full_name() if u else '') or '—'}</b>\n"
+        f"🔗 {uname}\n"
+        f"📞 {(u.phone if u and u.phone else '—')}\n"
+        f"🆔 <code>{u.telegram_id if u else '—'}</code>\n"
+        f"🕒 {cm.created_at:%d.%m.%Y %H:%M}"
+        + (f"\n\n💬 {cm.message}" if cm.message else "")
+    )
+    for chat in targets:
+        send_telegram_message(chat, text)
+        if cm.attachment:
+            send_telegram_document(chat, cm.attachment.path, caption="📎 Biriktirilgan fayl")
 
 
 def _send_support_email(cm_id: str):

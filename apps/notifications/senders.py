@@ -32,6 +32,25 @@ def send_telegram_message(telegram_id: int, text: str, parse_mode: str = "HTML")
         return False
 
 
+def send_telegram_document(telegram_id, file_path: str, caption: str = "") -> bool:
+    """Faylni Telegram orqali yuboradi (sendDocument, ≤50MB bot chegarasi)."""
+    if not settings.TELEGRAM_BOT_TOKEN:
+        logger.warning("No TELEGRAM_BOT_TOKEN configured.")
+        return False
+    try:
+        with open(file_path, "rb") as fh:
+            resp = httpx.post(
+                f"{BOT_API}/sendDocument",
+                data={"chat_id": telegram_id, "caption": caption, "parse_mode": "HTML"},
+                files={"document": fh},
+                timeout=180,
+            )
+        return resp.is_success and resp.json().get("ok")
+    except Exception as e:
+        logger.error("Telegram document send error: %s", e)
+        return False
+
+
 def _get_eskiz_token() -> str | None:
     """Authenticate with Eskiz.uz and return bearer token."""
     if ESKIZ_TOKEN_CACHE.get("token"):

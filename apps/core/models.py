@@ -17,7 +17,10 @@ class ContactMessage(BaseModel):
         "accounts.User", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="contact_messages",
     )
-    message = models.TextField(verbose_name="Xabar")
+    message = models.TextField(verbose_name="Xabar", blank=True)
+    attachment = models.FileField(
+        upload_to="support/%Y/%m/", null=True, blank=True, verbose_name="Biriktirilgan fayl",
+    )
     telegram_username = models.CharField(max_length=100, blank=True)
     is_read = models.BooleanField(default=False, verbose_name="O'qilgan")
 

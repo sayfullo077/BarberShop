@@ -158,8 +158,13 @@ TELEGRAM_BOT_USERNAME = config("TELEGRAM_BOT_USERNAME", default="")
 ESKIZ_EMAIL = config("ESKIZ_EMAIL", default="")
 ESKIZ_PASSWORD = config("ESKIZ_PASSWORD", default="")
 
-# Email (Support)
+# Support / murojaat
 SUPPORT_EMAIL = config("SUPPORT_EMAIL", default="sayfulloh.dev@gmail.com")
+# Murojaatlar shu Telegram chat ID(lar)ga yuboriladi (vergul bilan bir nechta).
+# Bo'sh bo'lsa — Django superuser'lar (telegram_id li) ga yuboriladi.
+SUPPORT_CHAT_ID = config("SUPPORT_CHAT_ID", default="")
+# Murojaat fayli uchun maksimal hajm (50 MB — Telegram bot yuborish chegarasi)
+SUPPORT_MAX_FILE_MB = 50
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
