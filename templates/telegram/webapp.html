@@ -1959,6 +1959,8 @@ function bkServiceIds(){ return bk.services.map(x=>x.id); }
 function bkServiceNames(){ return bk.services.map(x=>x.name).join(', '); }
 function bkHasService(id){ return bk.services.some(x=>x.id===''+id); }
 let shopCache = null;
+let _svcCache = {};      // xizmatlar keshi (id → {name,duration,price}) — onclick apostrof buzmasin
+let _barberCache = {};   // ustalar keshi (id → {name,slot_duration}) — xuddi shu sabab
 let screenStack = [];
 
 // ══════════════════════════════════════════════════════
@@ -2454,10 +2456,13 @@ function renderServices(services, multi) {
   if (!services.length) return `<div class="empty-wrap"><div class="empty-sub">Xizmatlar topilmadi</div></div>`;
   let html = '<ul class="price-list">';
   services.forEach(s => {
+    // Xizmat ma'lumotini keshga saqlaymiz — onclick'da faqat id (UUID) uzatiladi,
+    // aks holda apostrofli (o', bo'...) nomlar JS satrini buzadi.
+    _svcCache['' + s.id] = { id: '' + s.id, name: s.name, duration: +s.duration, price: s.price };
     if (multi) {
       const sel = bkHasService(s.id);
       html += `
-      <li class="price-item ${sel ? 'selected' : ''}" onclick="toggleService('${s.id}','${esc(s.name)}',${s.duration},'${s.price}')">
+      <li class="price-item ${sel ? 'selected' : ''}" onclick="toggleService('${s.id}')">
         <div class="svc-check" style="margin-right:10px;">${sel ? '<i class="fa-solid fa-check"></i>' : ''}</div>
         <div class="pi-left">
           <div class="pi-name">${esc(s.name)}</div>
@@ -2467,7 +2472,7 @@ function renderServices(services, multi) {
       </li>`;
     } else {
       html += `
-      <li class="price-item" onclick="pickServiceFromShop('${s.id}','${esc(s.name)}',${s.duration},'${s.price}')">
+      <li class="price-item" onclick="pickServiceFromShop('${s.id}')">
         <div class="pi-left">
           <div class="pi-name">${esc(s.name)}</div>
           <div class="pi-meta">${s.duration} daqiqa${s.category ? ' · ' + esc(s.category) : ''}</div>
@@ -2484,8 +2489,9 @@ function renderBarbers(barbers) {
   if (!barbers.length) return `<div class="empty-wrap"><div class="empty-sub">Ustalar topilmadi</div></div>`;
   let html = '<div class="barber-grid">';
   barbers.forEach(b => {
+    _barberCache['' + b.id] = { name: b.name, slot_duration: +b.slot_duration };
     html += `
-    <div class="barber-card" onclick="pickBarberFromShop('${b.id}','${esc(b.name)}',${b.slot_duration})">
+    <div class="barber-card" onclick="pickBarberFromShop('${b.id}')">
       <div class="barber-photo">
         ${b.avatar_url ? `<img src="${b.avatar_url}" alt="">` : '💈'}
       </div>
@@ -2551,10 +2557,12 @@ function renderServiceScreen() {
   document.getElementById('service-content').innerHTML = html;
 }
 
-function toggleService(id, name, duration, price) {
+function toggleService(id) {
+  const s = _svcCache['' + id];
+  if (!s) return;
   const i = bk.services.findIndex(x => x.id === '' + id);
   if (i >= 0) bk.services.splice(i, 1);
-  else bk.services.push({ id: '' + id, name, duration: +duration, price: +price });
+  else bk.services.push({ id: '' + id, name: s.name, duration: +s.duration, price: +s.price });
   tg.HapticFeedback.selectionChanged();
   renderServiceScreen();
 }
@@ -2566,8 +2574,10 @@ function serviceNext() {
 }
 
 // Salon detalidan xizmatga bosilganda — qo'shib, ko'p-tanlash ekraniga o'tadi
-function pickServiceFromShop(id, name, duration, price) {
-  if (!bkHasService(id)) bk.services.push({ id: '' + id, name, duration: +duration, price: +price });
+function pickServiceFromShop(id) {
+  const s = _svcCache['' + id];
+  if (!s) return;
+  if (!bkHasService(id)) bk.services.push({ id: '' + id, name: s.name, duration: +s.duration, price: +s.price });
   tg.HapticFeedback.selectionChanged();
   showServiceScreen();
 }
@@ -2580,8 +2590,10 @@ function showBarberScreen() {
   tg.MainButton.hide();
 }
 
-function pickBarberFromShop(id, name, slotDur) {
-  bk.barberId = id; bk.barberName = name;
+function pickBarberFromShop(id) {
+  const b = _barberCache['' + id];
+  if (!b) return;
+  bk.barberId = id; bk.barberName = b.name;
   tg.HapticFeedback.selectionChanged();
   // Xizmat hali tanlanmagan bo'lsa — avval xizmat tanlansin (dead-end oldini olish)
   if (bk.services.length) showDatetimeScreen();
