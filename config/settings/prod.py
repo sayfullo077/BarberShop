@@ -3,6 +3,33 @@ from decouple import config, Csv
 
 DEBUG = False
 
+# ── Sentry (xato monitoring) ──────────────────────────────
+# SENTRY_DSN bo'sh bo'lsa butunlay o'chiq (hech narsa yuborilmaydi).
+# Maxfiylik: send_default_pii=False (IP/foydalanuvchi ma'lumoti yubormaydi),
+# before_send maxfiy qiymatlarni tozalaydi.
+SENTRY_DSN = config("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    def _sentry_before_send(event, hint):
+        try:
+            extra = event.get("extra") or {}
+            for k in ("TELEGRAM_BOT_TOKEN", "SECRET_KEY", "DB_PASSWORD", "SUPPORT_CHAT_ID"):
+                extra.pop(k, None)
+        except Exception:
+            pass
+        return event
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        send_default_pii=False,
+        traces_sample_rate=config("SENTRY_TRACES_RATE", default=0.0, cast=float),
+        environment=config("SENTRY_ENV", default="production"),
+        before_send=_sentry_before_send,
+    )
+
 # Reverse-proxy (Caddy/nginx) orqasida — HTTPS ni to'g'ri aniqlash uchun
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
