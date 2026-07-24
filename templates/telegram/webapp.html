@@ -2679,10 +2679,7 @@ function pickSlot(el, time) {
   bk.time = time;
   tg.HapticFeedback.selectionChanged();
   document.getElementById('btn-datetime-next').style.display = '';
-  tg.MainButton.setText('Davom etish').show().onClick(() => {
-    tg.MainButton.offClick();
-    showConfirmScreen();
-  });
+  tg.MainButton.hide();   // ichki «Davom etish» tugmasi ishlatiladi (takrorlanmasin)
 }
 
 // — Confirm screen —
@@ -2706,10 +2703,7 @@ function showConfirmScreen() {
   btn.disabled = false;
   btn.style.display = '';
   goTo('s-confirm');
-  tg.MainButton.setText('Tasdiqlash').show().onClick(() => {
-    tg.MainButton.offClick();
-    confirmBooking();
-  });
+  tg.MainButton.hide();   // ichki «Tasdiqlash» tugmasi ishlatiladi (takrorlanmasin)
 }
 
 async function confirmBooking() {
@@ -2728,14 +2722,14 @@ async function confirmBooking() {
     return;
   }
   btn.disabled = true;
-  tg.MainButton.showProgress(true);
+  const btnHtml = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;margin:0 auto;"></div>';
   document.getElementById('confirm-err').style.display = 'none';
   try {
     const d = await POST('/api/bookings/', {
       barber_id:bk.barberId, service_ids:bkServiceIds(), date:bk.date, time:bk.time,
       phone: phone
     });
-    tg.MainButton.hideProgress();
     tg.HapticFeedback.notificationOccurred('success');
     if (phone && userProfile) userProfile.phone = phone;
     document.getElementById('success-text').textContent =
@@ -2745,14 +2739,11 @@ async function confirmBooking() {
     tg.MainButton.hide();
   } catch(e) {
     btn.disabled = false;
-    tg.MainButton.hideProgress();
+    btn.innerHTML = btnHtml;
     tg.HapticFeedback.notificationOccurred('error');
     const errEl = document.getElementById('confirm-err');
     errEl.textContent = e.message;
     errEl.style.display = 'block';
-    tg.MainButton.setText('Tasdiqlash').show().onClick(() => {
-      tg.MainButton.offClick(); confirmBooking();
-    });
   }
 }
 
